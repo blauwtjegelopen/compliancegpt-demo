@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="60" viewBox="0 0 320 60" role="img" aria-label="LayerZero">
+  <rect width="320" height="60" fill="none"/>
+  <circle cx="30" cy="30" r="14" fill="#06B6D4"/>
+  <g fill="#111827" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">
+    <text x="60" y="38">LayerZero</text>
+  </g>
+</svg>

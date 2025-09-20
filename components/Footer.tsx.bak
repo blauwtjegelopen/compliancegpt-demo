@@ -1,0 +1,14 @@
+// components/Footer.tsx
+export default function Footer() {
+  return (
+    <footer className="border-t mt-12">
+      <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+        <div>© {new Date().getFullYear()} ComplianceGPT. All rights reserved.</div>
+        <div className="flex gap-4">
+          <a href="/trust" className="hover:text-gray-800">Security & Trust</a>
+          <a href="mailto:contact@compliancegpt.com" className="hover:text-gray-800">Contact</a>
+        </div>
+      </div>
+    </footer>
+  );
+}

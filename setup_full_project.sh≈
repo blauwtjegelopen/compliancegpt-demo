@@ -1,0 +1,2 @@
+chmod +x setup_full_project.sh
+./setup_full_project.sh

@@ -1,0 +1,25 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith('/admin')) {
+    const cookie = req.cookies.get('demo-pass')?.value;
+    const pass = process.env.NEXT_PUBLIC_DEMO_PASS || '';
+    const url = new URL(req.url);
+    const qp = url.searchParams.get('pass');
+
+    if (qp && pass && qp === pass) {
+      const res = NextResponse.next();
+      res.cookies.set('demo-pass', pass, { path: '/', maxAge: 60 * 60 * 8 });
+      return res;
+    }
+
+    if (!pass || cookie === pass) return NextResponse.next();
+
+    url.pathname = '/';
+    url.searchParams.set('demo', 'login-required');
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
+}
+export const config = { matcher: ['/admin/:path*'] };
