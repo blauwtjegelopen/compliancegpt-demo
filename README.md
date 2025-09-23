@@ -1,18 +1,1 @@
-# LayerZero Demo (v3)
-
-Polished Next.js demo with:
-- Landing page (hero, features, pricing, FAQ)
-- Admin dashboard (charts, logs, templates, approvals)
-- Security & Trust page
-- NEW: Request a Pilot form (fake submit) + footer
-
-## Run locally
-```
-npm install
-npm run dev
-```
-
-## Deploy (Vercel)
-- Push to GitHub
-- Import in Vercel as Next.js app
-- Deploy
+# compliancegpt-demo
