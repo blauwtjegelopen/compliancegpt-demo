@@ -1,0 +1,88 @@
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import ContactModal from '@/components/ContactModal';
+
+export default function AdminDemoPage() {
+  return (
+    <>
+      <Navbar />
+
+      {/* Hero */}
+      <section className="max-w-6xl mx-auto px-6 pt-20 pb-8">
+        <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+          Admin Demo
+        </h1>
+        <p className="mt-3 text-lg text-gray-600 max-w-3xl">
+          Explore policy decisions, redactions, and audit signals in a safe sandbox.
+          This preview mirrors what security teams see in production.
+        </p>
+      </section>
+
+      {/* Preview card (same visual language as homepage) */}
+      <section className="max-w-6xl mx-auto px-6 pb-14">
+        <div className="rounded-2xl bg-white shadow p-6">
+          <div className="text-sm text-gray-500 mb-2">Dashboard Preview</div>
+          <div className="rounded-xl border p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-medium">Policy Decision</div>
+              <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                Allowed (Redacted)
+              </span>
+            </div>
+
+            <div className="text-xs text-gray-500 mb-1">Prompt (sanitized)</div>
+            <pre className="text-sm bg-gray-50 p-3 rounded-lg overflow-auto">
+{`"Write a follow-up email to [REDACTED_NAME] about invoice [REDACTED_NUMBER]."`}
+            </pre>
+
+            <div className="grid grid-cols-3 gap-2 mt-4">
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-gray-500">PII Redactions</div>
+                <div className="text-lg font-semibold">18</div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-gray-500">Blocked</div>
+                <div className="text-lg font-semibold">2.4%</div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="text-xs text-gray-500">Active Users</div>
+                <div className="text-lg font-semibold">1,874</div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-between">
+              <div className="text-xs text-gray-500">
+                Sample data. No real tenant info is shown.
+              </div>
+              <a
+                href="/admin" // keep same route; replace with real dashboard route if separate
+                className="px-4 py-2 rounded-xl bg-black text-white"
+              >
+                Open Full Demo
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Compliance highlights */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            { t: 'GDPR / PII Guard', d: 'Inline redaction of emails, phones, addresses, names.' },
+            { t: 'Code & Secrets', d: 'Detections for keys, tokens, code fragments, repos.' },
+            { t: 'Audit & Export', d: 'Export activity to your SIEM via CSV/JSON/API.' },
+          ].map((x) => (
+            <div key={x.t} className="rounded-xl border bg-white p-5">
+              <div className="font-semibold">{x.t}</div>
+              <div className="text-sm text-gray-600 mt-2">{x.d}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <Footer />
+      <ContactModal />
+    </>
+  );
+}

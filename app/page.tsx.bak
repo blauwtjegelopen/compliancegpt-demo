@@ -1,5 +1,6 @@
 'use client';
 
+import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import LogoStrip from '@/components/LogoStrip';
 import TrustedControls from '@/components/TrustedControls';
@@ -7,22 +8,22 @@ import BlackCTABanner from '@/components/BlackCTABanner';
 import PricingSection from '@/components/PricingSection';
 import FAQSection from '@/components/FAQSection';
 import ContactLargeFinal from '@/components/ContactLargeFinal';
-// ⬇️ removed ContactModal import
+import Footer from '@/components/Footer';
+import ContactModal from '@/components/ContactModal';
 
 export default function Home() {
   return (
     <>
+      <Navbar />
       <Hero />
       <LogoStrip />
       <TrustedControls />
       <BlackCTABanner />
       <PricingSection />
       <FAQSection />
-
-      {/* Anchor target */}
-      <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
-        <ContactLargeFinal />
-      </div>
+      <ContactLargeFinal />
+      <Footer />
+      <ContactModal />
     </>
   );
 }

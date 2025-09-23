@@ -1,218 +1,461 @@
-'use client';
-import { useMemo, useState } from 'react';
-import Navbar from '@/components/Navbar';
-import Footer from '@/components/Footer';
-import { logs as baseLogs } from '@/lib/mockData';
-import PolicyMiniChart from '@/components/PolicyMiniChart';
+// app/admin/page.tsx
+"use client";
 
-export default function AdminPage(){
-  const [activePolicies, setActivePolicies] = useState<string[]>(['Baseline Allowlist']);
-  function addPolicy(name: string){
-    setActivePolicies(prev => prev.includes(name) ? prev : [...prev, name]);
-  }
-  function clearPolicies(){
-    setActivePolicies([]);
-  }
+import { useMemo, useState } from "react";
+import {
+  ShieldCheck,
+  EyeOff,
+  KeySquare,
+  UserCheck,
+  Activity,
+  ArrowRight,
+  Check,
+  Scissors,
+  Trash2,
+  Clipboard,
+} from "lucide-react";
+import ContactLargeFinal from "@/components/ContactLargeFinal"; // ✅ added
 
-  // Demo chart data (last 7 days)
-  const chartData = useMemo(() => {
-    const today = new Date();
-    const arr: any[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      const base = 10 + ((d.getDate() * 7) % 12);
-      arr.push({
-        date: label,
-        redactions: base + (i % 3) * 4,
-        blocks: Math.max(0, Math.round(base/4) - (i%2 ? 1 : 0)),
-        approvals: Math.round(base/2) + (i%4),
-      });
-    }
-    return arr;
-  }, []);
+// --- Detectors & helpers ---------------------------------------------------
 
-  // CSV export for logs
-  const [logRows] = useState(baseLogs);
-  function exportCsv(){
-    const header = ['time','user','prompt','action','rule'];
-    const csv = [header.join(',')].concat(
-      logRows.map(r => header.map(h => '"' + String((r as any)[h]).replace(/"/g,'\\"') + '"').join(','))
-    ).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'activity-log.csv'; a.click();
-    URL.revokeObjectURL(url);
-  }
+const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const PHONE_RE = /\b(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{2,4}\b/g;
+const NAME_RE = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/g; // naive full names
+const INVOICE_RE = /\b(invoice|inv)[-\s]?\#?\s*\d{4,}\b/gi;
+const API_KEY_RE = /\b(sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36,})\b/g;
 
-  // Approvals with filter + actions
-  const [approvals, setApprovals] = useState([
-    { id: 'A-1024', submitted: '10:10', user: 'lee@co', reason: 'Source Code', prompt: 'Analyze function from oauth-service repo...', status: 'pending' },
-    { id: 'A-1025', submitted: '10:14', user: 'maria@co', reason: 'PII', prompt: 'Email to client John Doe <john@acme.com>...', status: 'pending' }
+function sanitizePrompt(input: string) {
+  let redactions = 0;
+
+  const redact = (text: string, re: RegExp, label: string) =>
+    text.replace(re, () => {
+      redactions++;
+      return `[REDACTED_${label}]`;
+    });
+
+  let out = input;
+  out = redact(out, EMAIL_RE, "EMAIL");
+  out = redact(out, PHONE_RE, "PHONE");
+  out = redact(out, API_KEY_RE, "SECRET");
+  out = redact(out, INVOICE_RE, "NUMBER");
+  out = redact(out, NAME_RE, "NAME"); // last
+
+  return { out, redactions };
+}
+
+function pct(n: number) {
+  return `${n.toFixed(1)}%`;
+}
+
+function Badge({
+  tone = "ok",
+  children,
+}: {
+  tone?: "ok" | "review" | "block" | "approved" | "redacted";
+  children: React.ReactNode;
+}) {
+  const tones = {
+    ok: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
+    review: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300",
+    block: "bg-rose-100 text-rose-800 dark:bg-rose-900/20 dark:text-rose-300",
+    approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300",
+    redacted: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-300",
+  } as const;
+  return (
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${tones[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+// --- Types -----------------------------------------------------------------
+
+type QueueStatus = "Pending" | "Approved" | "Redacted";
+type QueueItem = {
+  id: string;
+  user: string;
+  text: string;
+  redacted?: string;
+  status: QueueStatus;
+  createdAt: string; // simple time label
+  needsReview: boolean;
+};
+
+// --- Page ------------------------------------------------------------------
+
+export default function AdminDemoPage() {
+  // Playground state
+  const [prompt, setPrompt] = useState(
+    `Hey team, can you follow up with Jane Doe about invoice 84921?
+Her email is jane.doe@acme.com and phone +1 415-555-0199.
+Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
+  );
+  const analysis = useMemo(() => sanitizePrompt(prompt), [prompt]);
+
+  const piiCount =
+    (prompt.match(EMAIL_RE)?.length || 0) +
+    (prompt.match(PHONE_RE)?.length || 0) +
+    (prompt.match(NAME_RE)?.length || 0);
+  const secretsCount = prompt.match(API_KEY_RE)?.length || 0;
+  const numbersCount = prompt.match(INVOICE_RE)?.length || 0;
+
+  const blockedRate = secretsCount > 0 ? 2.4 : 0.6; // demo
+  const decision: "Allowed (Redacted)" | "Needs Review" | "Blocked" =
+    secretsCount > 0 ? "Allowed (Redacted)" : "Allowed (Redacted)";
+
+  // Approval queue demo data
+  const [queue, setQueue] = useState<QueueItem[]>([
+    {
+      id: "q1",
+      user: "maria@company.com",
+      text:
+        "Email Jane Doe about invoice 84921. jane.doe@acme.com +1 415 555 0199",
+      status: "Pending",
+      createdAt: "10:42",
+      needsReview: true,
+    },
+    {
+      id: "q2",
+      user: "lee@company.com",
+      text: "Share repo link with Nina: ghp_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8",
+      status: "Pending",
+      createdAt: "10:38",
+      needsReview: true,
+    },
+    {
+      id: "q3",
+      user: "arun@company.com",
+      text: "Send update to client. No sensitive content.",
+      status: "Pending",
+      createdAt: "10:31",
+      needsReview: false,
+    },
   ]);
-  const [filter, setFilter] = useState('all');
-  const filteredApprovals = approvals.filter(a => filter==='all' ? true : a.status===filter);
-  function approve(id: string){
-    setApprovals(prev => prev.map(a => a.id===id ? { ...a, status: 'approved' } : a));
-  }
-  function deny(id: string){
-    setApprovals(prev => prev.map(a => a.id===id ? { ...a, status: 'denied' } : a));
-  }
-  function exportApprovals(){
-    const header = ['id','submitted','user','reason','prompt','status'];
-    const csv = [header.join(',')].concat(
-      approvals.map(r => header.map(h => '"' + String((r as any)[h]).replace(/"/g,'\\"') + '"').join(','))
-    ).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'approvals.csv'; a.click();
-    URL.revokeObjectURL(url);
-  }
+
+  const pendingCount = queue.filter((q) => q.status === "Pending").length;
+  const approvedCount = queue.filter((q) => q.status === "Approved").length;
+  const redactedCount = queue.filter((q) => q.status === "Redacted").length;
+
+  // Actions
+  const handleApprove = (id: string) =>
+    setQueue((qs) =>
+      qs.map((q) => (q.id === id ? { ...q, status: "Approved" as QueueStatus } : q))
+    );
+
+  const handleRedact = (id: string) =>
+    setQueue((qs) =>
+      qs.map((q) => {
+        if (q.id !== id) return q;
+        const { out } = sanitizePrompt(q.text);
+        return { ...q, redacted: out, status: "Redacted" as QueueStatus };
+      })
+    );
+
+  const handleDelete = (id: string) =>
+    setQueue((qs) => qs.filter((q) => q.id !== id));
+
+  const copySanitized = async () => {
+    try {
+      await navigator.clipboard.writeText(analysis.out);
+      alert("Sanitized prompt copied to clipboard.");
+    } catch {
+      alert("Could not copy to clipboard.");
+    }
+  };
 
   return (
-    <div>
-      <Navbar />
-      <main className="max-w-6xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6">Admin Demo</h1>
+    <main>
+      {/* Header */}
+      <section className="max-w-6xl mx-auto px-6 pt-20 pb-8">
+        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-gray-200">
+          Admin Demo
+        </h1>
+        <p className="mt-3 text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
+          See how LayerZero protects sensitive data in real time: PII redaction, code & secrets detection,
+          and approval workflows—before data leaves your tenant.
+        </p>
+      </section>
 
-        {/* Active Policies */}
-        <div className="rounded-2xl bg-white shadow p-5 mb-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-lg">Active Policies</h2>
-            <span className="text-sm text-gray-500">(demo) Click templates below to add</span>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {activePolicies.map(p => (
-              <span key={p} className="px-2.5 py-1 rounded-full text-xs bg-indigo-50 text-indigo-700 border border-indigo-100">{p}</span>
-            ))}
-            {activePolicies.length > 0 && (
-              <button onClick={clearPolicies} className="ml-2 px-2 py-1 rounded-full text-xs border text-gray-600 hover:bg-gray-50">Clear</button>
-            )}
+      {/* Playground */}
+      <section className="max-w-6xl mx-auto px-6 pb-10">
+        <div className="grid md:grid-cols-5 gap-6 items-start">
+          {/* Left: Input */}
+          <div className="md:col-span-3 rounded-2xl border border-gray-200 bg-white shadow-sm p-5 dark:border-white/10 dark:bg-transparent">
+            <div className="flex items-center justify-between mb-3 text-sm">
+              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <ShieldCheck className="h-4 w-4" />
+                <span>Paste a prompt to scan</span>
+              </div>
+              <button
+                onClick={copySanitized}
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
+                title="Copy sanitized prompt"
+              >
+                <Clipboard className="h-3.5 w-3.5" />
+                Copy sanitized
+              </button>
+            </div>
+
+            <textarea
+              className="w-full min-h-[220px] rounded-xl border px-3 py-2 outline-none focus:ring-2 focus:ring-black/10 text-gray-900 dark:text-gray-200 bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <Badge tone="ok">Inline redaction on</Badge>
+              <Badge tone="review">Secret scanning</Badge>
+              <Badge tone="ok">Region routing: EU</Badge>
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <MetricCard icon={<EyeOff className="h-4 w-4" />} label="PII Redactions" value={piiCount + numbersCount} />
+              <MetricCard icon={<KeySquare className="h-4 w-4" />} label="Secrets Detected" value={secretsCount} />
+              <MetricCard icon={<Activity className="h-4 w-4" />} label="Blocked" value={pct(secretsCount > 0 ? 2.4 : 0.6)} />
+            </div>
           </div>
 
-          {/* Quick add preset buttons */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={()=>addPolicy('GDPR PII Guard')} className="px-2.5 py-1 rounded-full text-xs border">+ GDPR PII Guard</button>
-            <button onClick={()=>addPolicy('PCI DSS Card Shield')} className="px-2.5 py-1 rounded-full text-xs border">+ PCI DSS Card Shield</button>
-            <button onClick={()=>addPolicy('HIPAA PHI Filter')} className="px-2.5 py-1 rounded-full text-xs border">+ HIPAA PHI Filter</button>
-          </div>
+          {/* Right: Decision & Preview */}
+          <div className="md:col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm p-5 dark:border-white/10 dark:bg-transparent">
+            <div className="flex items-center justify-between mb-4">
+              <div className="font-medium text-gray-900 dark:text-gray-200">Policy Decision</div>
+              <Badge tone={decision === "Blocked" ? "block" : decision === "Needs Review" ? "review" : "ok"}>
+                {decision}
+              </Badge>
+            </div>
 
-          {/* KPI row + Chart */}
-          <div className="mt-5 grid md:grid-cols-4 gap-4 items-start">
-            <div className="rounded-xl border p-4">
-              <div className="text-xs text-gray-500">Weekly Redactions</div>
-              <div className="text-2xl font-semibold">{chartData.reduce((s,d)=>s+d.redactions,0).toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl border p-4">
-              <div className="text-xs text-gray-500">Weekly Blocks</div>
-              <div className="text-2xl font-semibold">{chartData.reduce((s,d)=>s+d.blocks,0).toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl border p-4">
-              <div className="text-xs text-gray-500">Approved via HITL</div>
-              <div className="text-2xl font-semibold">{chartData.reduce((s,d)=>s+d.approvals,0).toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl border p-4 md:col-span-1 md:col-start-4 hidden md:block">
-              <div className="text-xs text-gray-500 mb-1">7-day Trend</div>
-            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Prompt (sanitized)</div>
+            <pre className="text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-transparent p-3 overflow-auto text-gray-900 dark:text-gray-300">
+{analysis.out}
+            </pre>
+
+            <a
+              href="/admin"
+              className="mt-4 inline-flex items-center gap-2 text-sm underline text-gray-700 dark:text-gray-400"
+            >
+              See full dashboard <ArrowRight className="h-4 w-4" />
+            </a>
           </div>
-          <div className="mt-3 rounded-xl border p-3">
-            <PolicyMiniChart data={chartData} />
-            <div className="mt-2 text-xs text-gray-500">
-              <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-3 h-0.5 bg-indigo-500" /> Redactions</span>
-              <span className="inline-flex items-center gap-1 mr-3"><span className="inline-block w-3 h-0.5 bg-red-500" /> Blocks</span>
-              <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-500" /> Approvals</span>
-            </div>
+        </div>
+      </section>
+
+      {/* Approval Workflow Queue */}
+      <section className="max-w-6xl mx-auto px-6 pb-14">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">
+            Approval workflow
+          </h2>
+          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+            <Badge tone="review">Pending: {pendingCount}</Badge>
+            <Badge tone="approved">Approved: {approvedCount}</Badge>
+            <Badge tone="redacted">Redacted: {redactedCount}</Badge>
           </div>
         </div>
 
-        {/* Logs */}
-        <div className="rounded-2xl bg-white shadow overflow-hidden">
-          <div className="p-5 border-b flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="font-semibold text-lg">Activity Log</h2>
-              <button onClick={exportCsv} className="px-3 py-1.5 rounded-xl border text-sm">Export CSV</button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-sm text-gray-600">
-                <tr>
-                  <th className="px-5 py-3">Time</th>
-                  <th className="px-5 py-3">User</th>
-                  <th className="px-5 py-3">Prompt (truncated)</th>
-                  <th className="px-5 py-3">Action</th>
-                  <th className="px-5 py-3">Rule</th>
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-transparent overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-white/5">
+              <tr className="text-left text-gray-700 dark:text-gray-300">
+                <th className="py-3 px-4">Time</th>
+                <th className="py-3 px-4">User</th>
+                <th className="py-3 px-4">Prompt</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+              {queue.map((item) => (
+                <tr key={item.id} className="text-gray-800 dark:text-gray-300 align-top">
+                  <td className="py-3 px-4 whitespace-nowrap">{item.createdAt}</td>
+                  <td className="py-3 px-4 whitespace-nowrap">{item.user}</td>
+                  <td className="py-3 px-4">
+                    <div className="space-y-2">
+                      <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">
+                        {item.text}
+                      </pre>
+                      {item.redacted && (
+                        <div className="rounded-lg border border-gray-200 dark:border_WHITE/10 bg-gray-50 dark:bg-transparent p-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            <EyeOff className="h-3.5 w-3.5" />
+                            <span>Redacted</span>
+                          </div>
+                          <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">
+                            {item.redacted}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    {item.status === "Pending" && (
+                      <Badge tone={item.needsReview ? "review" : "ok"}>{item.status}</Badge>
+                    )}
+                    {item.status === "Approved" && <Badge tone="approved">Approved</Badge>}
+                    {item.status === "Redacted" && <Badge tone="redacted">Redacted</Badge>}
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleApprove(item.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+                        disabled={item.status !== "Pending"}
+                        title="Approve without changes"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRedact(item.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+                        disabled={item.status !== "Pending"}
+                        title="Apply redaction and approve"
+                      >
+                        <Scissors className="h-3.5 w-3.5" />
+                        Redact
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs"
+                        title="Remove from queue"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y">
-                {logRows.map((row,i) => (
-                  <tr key={i} className="text-sm">
-                    <td className="px-5 py-3 whitespace-nowrap">{row.time}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">{row.user}</td>
-                    <td className="px-5 py-3 truncate max-w-[300px]">{row.prompt}</td>
-                    <td className="px-5 py-3 capitalize">{row.action}</td>
-                    <td className="px-5 py-3">{row.rule}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+              ))}
 
-        {/* Approval Queue */}
-        <div className="mt-6 rounded-2xl bg-white shadow overflow-hidden">
-          <div className="p-5 border-b flex items-center justify-between">
-            <h2 className="font-semibold text-lg">Human-in-the-Loop Approval Queue</h2>
-            <div className="flex gap-3 items-center">
-              <label className="text-sm text-gray-600">Filter:</label>
-              <select value={filter} onChange={(e)=>setFilter(e.target.value)} className="border rounded-xl px-2 py-1 text-sm">
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="denied">Denied</option>
-              </select>
-              <button onClick={exportApprovals} className="px-3 py-1.5 rounded-xl border text-sm">Download CSV</button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 text-sm text-gray-600">
+              {queue.length === 0 && (
                 <tr>
-                  <th className="px-5 py-3">ID</th>
-                  <th className="px-5 py-3">Submitted</th>
-                  <th className="px-5 py-3">User</th>
-                  <th className="px-5 py-3">Reason</th>
-                  <th className="px-5 py-3">Prompt</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Actions</th>
+                  <td colSpan={5} className="py-8 px-4 text-center text-gray-600 dark:text-gray-400">
+                    No items in the approval queue.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredApprovals.map(item => (
-                  <tr key={item.id} className="text-sm">
-                    <td className="px-5 py-3 whitespace-nowrap">{item.id}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">{item.submitted}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">{item.user}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">{item.reason}</td>
-                    <td className="px-5 py-3 truncate max-w-[400px]">{item.prompt}</td>
-                    <td className="px-5 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-1 rounded-full text-xs ${item.status==='approved' ? 'bg-green-100 text-green-800' : item.status==='denied' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{item.status}</span>
-                    </td>
-                    <td className="px-5 py-3 whitespace-nowrap flex gap-2">
-                      <button onClick={() => deny(item.id)} className="px-3 py-1.5 rounded-xl border">Deny</button>
-                      <button onClick={() => approve(item.id)} className="px-3 py-1.5 rounded-xl bg-green-600 text-white">Approve & Release</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              )}
+            </tbody>
+          </table>
         </div>
-      </main>
-      <Footer />
+      </section>
+
+      {/* Controls overview (value-centric) */}
+      <section className="max-w-6xl mx-auto px-6 pb-10">
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200 mb-4">
+          What’s included
+        </h2>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Feature
+            icon={<ShieldCheck className="h-5 w-5" />}
+            title="Data Protection Guard"
+            body="Emails, phone numbers, addresses, names—redacted inline before they leave your tenant."
+          />
+          <Feature
+            icon={<KeySquare className="h-5 w-5" />}
+            title="Code & Secret Detection"
+            body="Detect API keys, tokens, and code fragments in real time to prevent exfiltration."
+          />
+          <Feature
+            icon={<UserCheck className="h-5 w-5" />}
+            title="Approval Workflow"
+            body="Escalate sensitive prompts to approvers. Release safely with full audit logs."
+          />
+        </div>
+      </section>
+
+      {/* Recent events (table) */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200 mb-4">
+          Recent events
+        </h2>
+        <div className="rounded-2xl border border-gray-200 bg_WHITE shadow-sm dark:border-white/10 dark:bg-transparent overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg_WHITE/5">
+              <tr className="text-left text-gray-700 dark:text-gray-300">
+                <th className="py-3 px-4">Time</th>
+                <th className="py-3 px-4">User</th>
+                <th className="py-3 px-4">Action</th>
+                <th className="py-3 px-4">Outcome</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide_WHITE/10">
+              <Row time="10:42" user="maria@company.com" action="Prompt scanned (secrets)" outcome={<Badge tone="ok">Allowed (Redacted)</Badge>} />
+              <Row time="10:38" user="lee@company.com" action="Prompt scanned (PII)" outcome={<Badge tone="ok">Allowed (Redacted)</Badge>} />
+              <Row time="10:31" user="arun@company.com" action="Policy escalation" outcome={<Badge tone="review">Needs Review</Badge>} />
+              <Row time="10:18" user="nina@company.com" action="Outbound blocked" outcome={<Badge tone="block">Blocked</Badge>} />
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ✅ Contact anchor target at bottom */}
+      <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
+        <ContactLargeFinal />
+      </div>
+    </main>
+  );
+}
+
+// --- Presentational bits ---------------------------------------------------
+
+function MetricCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border_WHITE/10 dark:bg-transparent">
+      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+        {icon}
+        <span className="text-xs">{label}</span>
+      </div>
+      <div className="mt-2 text-xl font-semibold text-gray-900 dark:text-gray-200">{value}</div>
     </div>
+  );
+}
+
+function Feature({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border_WHITE/10 dark:bg-transparent">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify_center rounded-md bg-blue-50 text-blue-600 dark:bg_WHITE/10 dark:text-blue-300">
+          {icon}
+        </div>
+        <div className="text-gray-900 dark:text-gray-200 font-semibold">{title}</div>
+      </div>
+      <p className="mt-3 text-gray-600 dark:text-gray-400">{body}</p>
+    </div>
+  );
+}
+
+function Row({
+  time,
+  user,
+  action,
+  outcome,
+}: {
+  time: string;
+  user: string;
+  action: string;
+  outcome: React.ReactNode;
+}) {
+  return (
+    <tr className="text-gray-800 dark:text-gray-300">
+      <td className="py-3 px-4 whitespace-nowrap">{time}</td>
+      <td className="py-3 px-4">{user}</td>
+      <td className="py-3 px-4">{action}</td>
+      <td className="py-3 px-4">{outcome}</td>
+    </tr>
   );
 }

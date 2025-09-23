@@ -1,19 +1,33 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import ContactModal from '@/components/ContactModal';
+import { Inter } from 'next/font/google';
+import Navbar from '@/components/Navbar';
+import ContactMount from '@/components/ContactMount'; // ✅ fixed path
+import Footer from '@/components/Footer'; // ✅ added footer
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'LayerZero',
   description: 'The foundation of safe AI',
+  icons: {
+    icon: '/logo-dark@3x.png', // ✅ favicon added
+  },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="bg-gray-50">
+      <body className={inter.className}>
+        {/* ✅ Mount first so it’s always present on every route */}
+        <ContactMount />
+        <Navbar />
         {children}
-        {/* Contact modal mounted globally */}
-        <ContactModal />
+        <Footer /> {/* ✅ footer now on all pages */}
       </body>
     </html>
   );

@@ -2,5 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { height: 100%; }
-body { color: #111827; background: #ffffff; }
+html, body { 
+  height: 100%; 
+}
+
+body { 
+  color: #111827; 
+  background: #ffffff; 
+}
+
+/* --- Step 5: smooth scrolling + sticky-header offset --- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* Ensure in-page anchors don't hide under the 64px navbar */
+:target {
+  scroll-margin-top: 5rem; /* ~80px to comfortably clear the header */
+}
+
+@layer utilities {
+  .dark-copy-strong {
+    @apply text-gray-900 dark:text-gray-900;
+  }
+
+  /* Optional utility if you want to add explicit offset on any element */
+  .scroll-mt-header {
+    scroll-margin-top: 5rem;
+  }
+}
