@@ -1,6 +1,6 @@
 export default function ContactLargeFinal() {
   return (
-    <section className="relative py-16" aria-labelledby="contact-sales-title">
+    <section id="contact" className="relative py-16" aria-labelledby="contact-sales-title">
       <div
         className="absolute inset-0 bg-gradient-to-b from-gray-50 via-white to-gray-50"
         aria-hidden="true"

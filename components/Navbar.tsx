@@ -17,6 +17,16 @@ export default function Navbar() {
     { href: '/about', label: 'About Us' },
   ];
 
+  // Scroll to #contact if present; otherwise fall back to home contact
+  const goToContact = () => {
+    const el = typeof document !== 'undefined' ? document.getElementById('contact') : null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.location.href = '/#contact';
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur dark:bg-gray-900/80">
       <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -57,15 +67,16 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Contact Us scrolls to ContactLargeFinal */}
-          <a
-            href="#contact"
+          {/* Contact Us scrolls to ContactLargeFinal with fallback */}
+          <button
+            type="button"
+            onClick={goToContact}
             className="relative text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white
                        after:absolute after:left-0 after:-bottom-1 after:w-0 after:h-[2px]
                        after:bg-black dark:after:bg-white after:transition-all hover:after:w-full"
           >
             Contact Us
-          </a>
+          </button>
 
           <Link
             href="/admin"
@@ -107,13 +118,16 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <a
-              href="#contact"
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setTimeout(goToContact, 0);
+              }}
               className="block text-left px-2 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100/70 dark:hover:bg-white/5"
-              onClick={() => setOpen(false)}
             >
               Contact Us
-            </a>
+            </button>
 
             <Link
               href="/admin"
