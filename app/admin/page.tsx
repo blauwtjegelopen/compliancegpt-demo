@@ -87,9 +87,17 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
   const secretsCount = prompt.match(API_KEY_RE)?.length || 0;
   const numbersCount = prompt.match(INVOICE_RE)?.length || 0;
 
-  const blockedRate = secretsCount > 0 ? 2.4 : 0.6;
-  const decision: "Allowed (Redacted)" | "Needs Review" | "Blocked" =
-    secretsCount > 0 ? "Allowed (Redacted)" : "Allowed (Redacted)";
+  // --- Decision union + tone (fixes TS2367) ---
+  type Decision = "Allowed (Redacted)" | "Needs Review" | "Blocked";
+  const decision: Decision =
+    secretsCount > 0
+      ? "Allowed (Redacted)" // secrets present → allow but redacted
+      : piiCount + numbersCount > 25
+      ? "Needs Review"
+      : "Allowed (Redacted)";
+
+  const decisionTone: "ok" | "review" | "block" =
+    decision === "Blocked" ? "block" : decision === "Needs Review" ? "review" : "ok";
 
   const [queue, setQueue] = useState<QueueItem[]>([
     {
@@ -201,9 +209,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
           <div className="md:col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm p-5 dark:border-white/10 dark:bg-transparent">
             <div className="flex items-center justify-between mb-4">
               <div className="font-medium text-gray-900 dark:text-gray-200">Policy Decision</div>
-              <Badge tone={decision === "Blocked" ? "block" : decision === "Needs Review" ? "review" : "ok"}>
-                {decision}
-              </Badge>
+              <Badge tone={decisionTone}>{decision}</Badge>
             </div>
 
             <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Prompt (sanitized)</div>
