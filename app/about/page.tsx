@@ -1,4 +1,4 @@
-import ContactModal from '@/components/ContactModal';
+// app/about/page.tsx
 import ContactLargeFinal from '@/components/ContactLargeFinal';
 
 /* --- Inline Roadmap so you can paste this file as-is --- */
@@ -236,8 +236,6 @@ export default function AboutPage() {
       <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
         <ContactLargeFinal />
       </div>
-
-      <ContactModal />
     </>
   );
 }

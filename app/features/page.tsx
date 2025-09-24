@@ -1,6 +1,5 @@
 import BlackCTABanner from '@/components/BlackCTABanner';
 import ContactLargeFinal from '@/components/ContactLargeFinal';
-import ContactModal from '@/components/ContactModal';
 
 export default function FeaturesPage() {
   return (
@@ -20,30 +19,12 @@ export default function FeaturesPage() {
       <section className="max-w-6xl mx-auto px-6 pb-12">
         <div className="grid md:grid-cols-3 gap-4">
           {[
-            {
-              title: 'GDPR / PII Guard',
-              desc: 'Emails, phone numbers, addresses, names—redacted inline before leaving your tenant.',
-            },
-            {
-              title: 'Source Code & Secrets',
-              desc: 'Detect code fragments, API keys, credentials, and repo references.',
-            },
-            {
-              title: 'Policy Guardrails',
-              desc: 'Allow/deny patterns, domains, models, and destinations with override workflows.',
-            },
-            {
-              title: 'Human-in-the-Loop',
-              desc: 'Escalate risky prompts to approvers; release with audit trail.',
-            },
-            {
-              title: 'Region Routing',
-              desc: 'Route inference by region to satisfy data residency requirements.',
-            },
-            {
-              title: 'Zero-Retention Mode',
-              desc: 'Opt into strict retention controls for regulated workloads.',
-            },
+            { title: 'GDPR / PII Guard', desc: 'Emails, phone numbers, addresses, names—redacted inline before leaving your tenant.' },
+            { title: 'Source Code & Secrets', desc: 'Detect code fragments, API keys, credentials, and repo references.' },
+            { title: 'Policy Guardrails', desc: 'Allow/deny patterns, domains, models, and destinations with override workflows.' },
+            { title: 'Human-in-the-Loop', desc: 'Escalate risky prompts to approvers; release with audit trail.' },
+            { title: 'Region Routing', desc: 'Route inference by region to satisfy data residency requirements.' },
+            { title: 'Zero-Retention Mode', desc: 'Opt into strict retention controls for regulated workloads.' },
           ].map((f) => (
             <div key={f.title} className="rounded-xl border bg-white p-5 dark:bg-transparent dark:border-white/10">
               <div className="font-semibold text-gray-900 dark:text-gray-200">{f.title}</div>
@@ -97,8 +78,6 @@ export default function FeaturesPage() {
       <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
         <ContactLargeFinal />
       </div>
-
-      <ContactModal />
     </>
   );
 }

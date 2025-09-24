@@ -14,19 +14,17 @@ import {
   Trash2,
   Clipboard,
 } from "lucide-react";
-import ContactLargeFinal from "@/components/ContactLargeFinal"; // ✅ added
+import ContactLargeFinal from "@/components/ContactLargeFinal";
 
 // --- Detectors & helpers ---------------------------------------------------
-
 const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const PHONE_RE = /\b(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{2,4}\b/g;
-const NAME_RE = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/g; // naive full names
+const NAME_RE = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/g;
 const INVOICE_RE = /\b(invoice|inv)[-\s]?\#?\s*\d{4,}\b/gi;
 const API_KEY_RE = /\b(sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36,})\b/g;
 
 function sanitizePrompt(input: string) {
   let redactions = 0;
-
   const redact = (text: string, re: RegExp, label: string) =>
     text.replace(re, () => {
       redactions++;
@@ -38,8 +36,7 @@ function sanitizePrompt(input: string) {
   out = redact(out, PHONE_RE, "PHONE");
   out = redact(out, API_KEY_RE, "SECRET");
   out = redact(out, INVOICE_RE, "NUMBER");
-  out = redact(out, NAME_RE, "NAME"); // last
-
+  out = redact(out, NAME_RE, "NAME");
   return { out, redactions };
 }
 
@@ -61,14 +58,8 @@ function Badge({
     approved: "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300",
     redacted: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-300",
   } as const;
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${tones[tone]}`}>
-      {children}
-    </span>
-  );
+  return <span className={`px-2 py-1 rounded-full text-xs font-medium ${tones[tone]}`}>{children}</span>;
 }
-
-// --- Types -----------------------------------------------------------------
 
 type QueueStatus = "Pending" | "Approved" | "Redacted";
 type QueueItem = {
@@ -77,14 +68,11 @@ type QueueItem = {
   text: string;
   redacted?: string;
   status: QueueStatus;
-  createdAt: string; // simple time label
+  createdAt: string;
   needsReview: boolean;
 };
 
-// --- Page ------------------------------------------------------------------
-
 export default function AdminDemoPage() {
-  // Playground state
   const [prompt, setPrompt] = useState(
     `Hey team, can you follow up with Jane Doe about invoice 84921?
 Her email is jane.doe@acme.com and phone +1 415-555-0199.
@@ -99,17 +87,15 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
   const secretsCount = prompt.match(API_KEY_RE)?.length || 0;
   const numbersCount = prompt.match(INVOICE_RE)?.length || 0;
 
-  const blockedRate = secretsCount > 0 ? 2.4 : 0.6; // demo
+  const blockedRate = secretsCount > 0 ? 2.4 : 0.6;
   const decision: "Allowed (Redacted)" | "Needs Review" | "Blocked" =
     secretsCount > 0 ? "Allowed (Redacted)" : "Allowed (Redacted)";
 
-  // Approval queue demo data
   const [queue, setQueue] = useState<QueueItem[]>([
     {
       id: "q1",
       user: "maria@company.com",
-      text:
-        "Email Jane Doe about invoice 84921. jane.doe@acme.com +1 415 555 0199",
+      text: "Email Jane Doe about invoice 84921. jane.doe@acme.com +1 415 555 0199",
       status: "Pending",
       createdAt: "10:42",
       needsReview: true,
@@ -136,23 +122,19 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
   const approvedCount = queue.filter((q) => q.status === "Approved").length;
   const redactedCount = queue.filter((q) => q.status === "Redacted").length;
 
-  // Actions
   const handleApprove = (id: string) =>
-    setQueue((qs) =>
-      qs.map((q) => (q.id === id ? { ...q, status: "Approved" as QueueStatus } : q))
-    );
+    setQueue((qs) => qs.map((q) => (q.id === id ? { ...q, status: "Approved" } : q)));
 
   const handleRedact = (id: string) =>
     setQueue((qs) =>
       qs.map((q) => {
         if (q.id !== id) return q;
         const { out } = sanitizePrompt(q.text);
-        return { ...q, redacted: out, status: "Redacted" as QueueStatus };
+        return { ...q, redacted: out, status: "Redacted" };
       })
     );
 
-  const handleDelete = (id: string) =>
-    setQueue((qs) => qs.filter((q) => q.id !== id));
+  const handleDelete = (id: string) => setQueue((qs) => qs.filter((q) => q.id !== id));
 
   const copySanitized = async () => {
     try {
@@ -229,10 +211,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
 {analysis.out}
             </pre>
 
-            <a
-              href="/admin"
-              className="mt-4 inline-flex items-center gap-2 text-sm underline text-gray-700 dark:text-gray-400"
-            >
+            <a href="/admin" className="mt-4 inline-flex items-center gap-2 text-sm underline text-gray-700 dark:text-gray-400">
               See full dashboard <ArrowRight className="h-4 w-4" />
             </a>
           </div>
@@ -242,9 +221,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
       {/* Approval Workflow Queue */}
       <section className="max-w-6xl mx-auto px-6 pb-14">
         <div className="flex items-baseline justify-between mb-4">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">
-            Approval workflow
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">Approval workflow</h2>
           <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
             <Badge tone="review">Pending: {pendingCount}</Badge>
             <Badge tone="approved">Approved: {approvedCount}</Badge>
@@ -270,26 +247,20 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
                   <td className="py-3 px-4 whitespace-nowrap">{item.user}</td>
                   <td className="py-3 px-4">
                     <div className="space-y-2">
-                      <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">
-                        {item.text}
-                      </pre>
+                      <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">{item.text}</pre>
                       {item.redacted && (
-                        <div className="rounded-lg border border-gray-200 dark:border_WHITE/10 bg-gray-50 dark:bg-transparent p-2">
+                        <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-transparent p-2">
                           <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-1">
                             <EyeOff className="h-3.5 w-3.5" />
                             <span>Redacted</span>
                           </div>
-                          <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">
-                            {item.redacted}
-                          </pre>
+                          <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">{item.redacted}</pre>
                         </div>
                       )}
                     </div>
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
-                    {item.status === "Pending" && (
-                      <Badge tone={item.needsReview ? "review" : "ok"}>{item.status}</Badge>
-                    )}
+                    {item.status === "Pending" && <Badge tone={item.needsReview ? "review" : "ok"}>Pending</Badge>}
                     {item.status === "Approved" && <Badge tone="approved">Approved</Badge>}
                     {item.status === "Redacted" && <Badge tone="redacted">Redacted</Badge>}
                   </td>
@@ -338,11 +309,9 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
         </div>
       </section>
 
-      {/* Controls overview (value-centric) */}
+      {/* Controls overview */}
       <section className="max-w-6xl mx-auto px-6 pb-10">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200 mb-4">
-          What’s included
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200 mb-4">What’s included</h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Feature
             icon={<ShieldCheck className="h-5 w-5" />}
@@ -362,14 +331,12 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
         </div>
       </section>
 
-      {/* Recent events (table) */}
+      {/* Recent events */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200 mb-4">
-          Recent events
-        </h2>
-        <div className="rounded-2xl border border-gray-200 bg_WHITE shadow-sm dark:border-white/10 dark:bg-transparent overflow-hidden">
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200 mb-4">Recent events</h2>
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-transparent overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg_WHITE/5">
+            <thead className="bg-gray-50 dark:bg-white/5">
               <tr className="text-left text-gray-700 dark:text-gray-300">
                 <th className="py-3 px-4">Time</th>
                 <th className="py-3 px-4">User</th>
@@ -377,7 +344,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
                 <th className="py-3 px-4">Outcome</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide_WHITE/10">
+            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
               <Row time="10:42" user="maria@company.com" action="Prompt scanned (secrets)" outcome={<Badge tone="ok">Allowed (Redacted)</Badge>} />
               <Row time="10:38" user="lee@company.com" action="Prompt scanned (PII)" outcome={<Badge tone="ok">Allowed (Redacted)</Badge>} />
               <Row time="10:31" user="arun@company.com" action="Policy escalation" outcome={<Badge tone="review">Needs Review</Badge>} />
@@ -387,7 +354,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
         </div>
       </section>
 
-      {/* ✅ Contact anchor target at bottom */}
+      {/* Contact anchor target */}
       <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
         <ContactLargeFinal />
       </div>
@@ -395,19 +362,9 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
   );
 }
 
-// --- Presentational bits ---------------------------------------------------
-
-function MetricCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number | string;
-}) {
+function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border_WHITE/10 dark:bg-transparent">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-transparent">
       <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
         {icon}
         <span className="text-xs">{label}</span>
@@ -417,19 +374,11 @@ function MetricCard({
   );
 }
 
-function Feature({
-  icon,
-  title,
-  body,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-}) {
+function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border_WHITE/10 dark:bg-transparent">
+    <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-white/10 dark:bg-transparent">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify_center rounded-md bg-blue-50 text-blue-600 dark:bg_WHITE/10 dark:text-blue-300">
+        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-blue-300">
           {icon}
         </div>
         <div className="text-gray-900 dark:text-gray-200 font-semibold">{title}</div>
@@ -439,17 +388,7 @@ function Feature({
   );
 }
 
-function Row({
-  time,
-  user,
-  action,
-  outcome,
-}: {
-  time: string;
-  user: string;
-  action: string;
-  outcome: React.ReactNode;
-}) {
+function Row({ time, user, action, outcome }: { time: string; user: string; action: string; outcome: React.ReactNode }) {
   return (
     <tr className="text-gray-800 dark:text-gray-300">
       <td className="py-3 px-4 whitespace-nowrap">{time}</td>

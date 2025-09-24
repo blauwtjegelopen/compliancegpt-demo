@@ -1,6 +1,5 @@
 import PricingSection from '@/components/PricingSection';
 import ContactLargeFinal from '@/components/ContactLargeFinal';
-import ContactModal from '@/components/ContactModal';
 
 export default function PricingPage() {
   return (
@@ -15,7 +14,7 @@ export default function PricingPage() {
         </p>
       </section>
 
-      {/* Pricing cards (reuse homepage component for consistency) */}
+      {/* Pricing cards */}
       <PricingSection />
 
       {/* FAQ nudge */}
@@ -28,10 +27,7 @@ export default function PricingPage() {
             We’ll help you choose the right option for your team size, risk profile, and compliance needs.
           </p>
           <div className="mt-4">
-            <a
-              className="inline-block px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black"
-              href="/#faq"
-            >
+            <a className="inline-block px-4 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black" href="/#faq">
               Read FAQs
             </a>
           </div>
@@ -42,8 +38,6 @@ export default function PricingPage() {
       <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
         <ContactLargeFinal />
       </div>
-
-      <ContactModal />
     </>
   );
 }
