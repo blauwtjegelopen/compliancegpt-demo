@@ -87,17 +87,18 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
   const secretsCount = prompt.match(API_KEY_RE)?.length || 0;
   const numbersCount = prompt.match(INVOICE_RE)?.length || 0;
 
-  // --- Decision union + tone (fixes TS2367) ---
-  type Decision = "Allowed (Redacted)" | "Needs Review" | "Blocked";
+  const blockedRate = secretsCount > 0 ? 2.4 : 0.6;
+
+  // --- Decision union + tone (no "Blocked" branch -> no TS2367) ---
+  type Decision = "Allowed (Redacted)" | "Needs Review";
   const decision: Decision =
     secretsCount > 0
-      ? "Allowed (Redacted)" // secrets present → allow but redacted
+      ? "Allowed (Redacted)"
       : piiCount + numbersCount > 25
       ? "Needs Review"
       : "Allowed (Redacted)";
 
-  const decisionTone: "ok" | "review" | "block" =
-    decision === "Blocked" ? "block" : decision === "Needs Review" ? "review" : "ok";
+  const decisionTone: "ok" | "review" = decision === "Needs Review" ? "review" : "ok";
 
   const [queue, setQueue] = useState<QueueItem[]>([
     {
@@ -225,7 +226,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
       </section>
 
       {/* Approval Workflow Queue */}
-      <section className="max-w-6xl mx-auto px-6 pb-14">
+      <section className="max-w-6xl mx_auto px-6 pb-14">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">Approval workflow</h2>
           <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
