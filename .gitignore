@@ -20,3 +20,5 @@ yarn-error.log*
 # Backup / editor files
 *.bak
 .DS_Store
+.DS_Store
+**/.DS_Store
