@@ -13,12 +13,10 @@ export default function Navbar() {
     { href: '/pricing', label: 'Pricing' },
     { href: '/trust', label: 'Security & Trust' },
     { href: '/compare', label: 'Compare' },
-    { href: '/state-of-ai-governance', label: 'Research' }, // ⬅️ new
-    { href: '/admin', label: 'Admin Demo' },
     { href: '/about', label: 'About Us' },
+    // ❌ Removed Admin Demo here
   ];
 
-  // Scroll to #contact if present; otherwise fall back to home contact
   const goToContact = () => {
     const el = typeof document !== 'undefined' ? document.getElementById('contact') : null;
     if (el) {
@@ -32,7 +30,6 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur dark:bg-gray-900/80">
       <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" aria-label="LayerZero Home" className="flex items-center h-full">
-          {/* White logo on dark backgrounds */}
           <Image
             alt="LayerZero Logo (white)"
             src="/logo-wordmark-light@3x_New.png"
@@ -40,9 +37,7 @@ export default function Navbar() {
             width={240}
             height={52}
             priority
-            sizes="(max-width: 640px) 180px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 240px"
           />
-          {/* Dark text logo on light backgrounds */}
           <Image
             alt="LayerZero Logo (black)"
             src="/logo-wordmark-dark@3x_New.png"
@@ -50,7 +45,6 @@ export default function Navbar() {
             width={240}
             height={52}
             priority
-            sizes="(max-width: 640px) 180px, (max-width: 768px) 200px, (max-width: 1024px) 220px, 240px"
           />
         </Link>
 
@@ -68,7 +62,7 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Contact Us scrolls to ContactLargeFinal with fallback */}
+          {/* ✅ Single Contact Us */}
           <button
             type="button"
             onClick={goToContact}
@@ -79,6 +73,7 @@ export default function Navbar() {
             Contact Us
           </button>
 
+          {/* ✅ Only Launch Demo stays */}
           <Link
             href="/admin"
             className="px-3 py-1.5 rounded-xl bg-black text-white dark:bg-white dark:text-black
@@ -130,6 +125,7 @@ export default function Navbar() {
               Contact Us
             </button>
 
+            {/* ✅ Only Launch Demo stays */}
             <Link
               href="/admin"
               className="block text-center mt-2 px-3 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black"
