@@ -1,36 +1,43 @@
+// components/Hero.tsx
 'use client';
+
+import Link from 'next/link';
 
 export default function Hero() {
   return (
     <section className="max-w-6xl mx-auto px-6 pt-20 pb-16">
       <div className="grid md:grid-cols-2 gap-10 items-center">
-        {/* Left side copy */}
+        {/* Left copy */}
         <div>
           <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
             Add a <span className="text-blue-600 font-semibold">layer of trust</span> to your AI
           </h1>
+
+          {/* Brand-forward subtitle */}
           <p className="mt-4 text-lg text-gray-600">
-            <span className="text-blue-600 font-semibold">LayerZero</span> is the foundation of safe AI.
-            It detects and redacts PII, source code, secrets, and regulated content in real time,
-            keeping your data secure before it leaves your tenant.
+            <span className="text-blue-600 font-semibold">LayerZero</span> is the AI policy enforcement layer for
+            your company. It helps enforce data rules, detect PII, source code, secrets, and regulated content in
+            real time—before anything leaves your tenant.
           </p>
+
           <div className="mt-6 flex gap-3">
-            <a
-              className="px-5 py-3 rounded-2xl bg-black text-white hover:shadow-lg transition"
-              href="/admin"
-            >
+            <Link href="/admin" className="px-5 py-3 rounded-2xl bg-black text-white">
               Launch Live Demo
-            </a>
-            <button className="px-5 py-3 rounded-2xl border hover:bg-gray-50 transition">
+            </Link>
+            <button
+              className="px-5 py-3 rounded-2xl border"
+              data-contact-trigger="true"
+            >
               Contact Us
             </button>
           </div>
+
           <p className="mt-3 text-sm text-gray-500">
             No code needed. Works with OpenAI, Azure OpenAI, and more.
           </p>
         </div>
 
-        {/* Right side preview card */}
+        {/* Right preview card stays as-is */}
         <div className="rounded-2xl bg-white shadow p-5">
           <div className="text-sm text-gray-500 mb-2">Admin Preview</div>
           <div className="rounded-xl border p-4">
@@ -40,10 +47,12 @@ export default function Hero() {
                 Allowed (Redacted)
               </span>
             </div>
+
             <div className="text-xs text-gray-500 mb-1">Prompt (sanitized)</div>
             <pre className="text-sm bg-gray-50 p-3 rounded-lg overflow-auto">
               "Write a follow-up email to [REDACTED_NAME] about invoice [REDACTED_NUMBER]."
             </pre>
+
             <div className="grid grid-cols-3 gap-2 mt-4">
               <div className="rounded-lg border p-3">
                 <div className="text-xs text-gray-500">PII Redactions</div>
@@ -58,10 +67,11 @@ export default function Hero() {
                 <div className="text-lg font-semibold">1,874</div>
               </div>
             </div>
+
             <div className="mt-4 text-right">
-              <a href="/admin" className="text-sm underline">
+              <Link href="/admin" className="text-sm underline">
                 See full dashboard →
-              </a>
+              </Link>
             </div>
           </div>
         </div>

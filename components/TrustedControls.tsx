@@ -1,66 +1,50 @@
 // components/TrustedControls.tsx
-import { ShieldCheck, Code2, UserCheck } from "lucide-react";
-
 export default function TrustedControls() {
-  const controls = [
-    {
-      title: "Data Protection Guard",
-      description:
-        "Automatically redact emails, phone numbers, addresses, and personal identifiers before data leaves your tenant.",
-      icon: ShieldCheck,
-    },
-    {
-      title: "Code & Secret Detection",
-      description:
-        "Detect API keys, code snippets, and repository references in real time — preventing leaks before they happen.",
-      icon: Code2,
-    },
-    {
-      title: "Approval Workflow",
-      description:
-        "Escalate sensitive prompts to approvers, then release safely with full audit logging for compliance.",
-      icon: UserCheck,
-    },
-  ];
-
   return (
-    <section className="bg-white dark:bg-transparent">
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tight dark-copy-strong">
-            Trusted Controls
-          </h2>
-          <p className="mt-3 text-lg max-w-2xl mx-auto dark-copy-strong">
-            Essential safeguards that keep your AI adoption safe, compliant, and under control.
-          </p>
-        </div>
+    <section
+      aria-labelledby="trusted-controls-title"
+      className="bg-white dark:bg-gray-950"
+    >
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <h2
+          id="trusted-controls-title"
+          className="text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-6"
+        >
+          Trusted Controls
+        </h2>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {controls.map(({ title, description, icon: Icon }) => (
-            <div
-              key={title}
-              className="rounded-2xl border border-gray-200 bg-white shadow-sm
-                         dark:border-gray-300 dark:bg-transparent"
-            >
-              <div className="p-6">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-10 w-10 items-center justify-center rounded-md
-                               bg-blue-50 text-blue-600
-                               dark:bg-gray-200 dark:text-blue-700"
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-lg font-semibold dark-copy-strong">
-                    {title}
-                  </h3>
-                </div>
-                <p className="mt-4 text-sm leading-relaxed dark-copy-strong">
-                  {description}
-                </p>
-              </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {/* GDPR / PII Guard */}
+          <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 p-4">
+            <div className="font-semibold text-gray-900 dark:text-white">
+              GDPR / PII Guard
             </div>
-          ))}
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Emails, phone numbers, addresses, and names are redacted inline.
+            </p>
+          </div>
+
+          {/* Source Code & Secrets */}
+          <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 p-4">
+            <div className="font-semibold text-gray-900 dark:text-white">
+              Source Code &amp; Secrets
+            </div>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Detect code fragments, API keys, and repo references before they
+              leave your tenant.
+            </p>
+          </div>
+
+          {/* AI-Fueled Continuous Red Teaming */}
+          <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 p-4">
+            <div className="font-semibold text-gray-900 dark:text-white">
+              AI-Fueled Continuous Red Teaming
+            </div>
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+              Live adversarial tests keep policies sharp; the AI learns and
+              adjusts continuously from approvals and blocks.
+            </p>
+          </div>
         </div>
       </div>
     </section>

@@ -3,6 +3,9 @@
 import Hero from '@/components/Hero';
 import LogoStrip from '@/components/LogoStrip';
 import TrustedControls from '@/components/TrustedControls';
+import HumanInTheLoop from '@/components/HumanInTheLoop'; // ⬅️ new
+import ComplianceAssurance from '@/components/ComplianceAssurance';
+import VisionStrip from '@/components/VisionStrip'; // ⬅️ new
 import BlackCTABanner from '@/components/BlackCTABanner';
 import PricingSection from '@/components/PricingSection';
 import FAQSection from '@/components/FAQSection';
@@ -15,6 +18,9 @@ export default function Home() {
       <Hero />
       <LogoStrip />
       <TrustedControls />
+      <HumanInTheLoop /> {/* ⬅️ new section with mini footer */}
+      <ComplianceAssurance />
+      <VisionStrip /> {/* ⬅️ new executive-level vision statement */}
       <BlackCTABanner />
       <PricingSection />
       <FAQSection />
