@@ -1,13 +1,8 @@
+'use client';
+
 // components/TrustPillars.tsx
 import React, { useState } from 'react';
 
-/**
- * TrustPillars
- * - Renamed pillars with crisp POV
- * - Glass cards, hover elevation, gradient accents
- * - Expandable details + copy-to-clipboard snippets
- * - Optional “evidence” link targets where available
- */
 export default function TrustPillars() {
   return (
     <section aria-labelledby="pillars-title" className="bg-white dark:bg-gray-950">
@@ -26,7 +21,8 @@ export default function TrustPillars() {
           Tenant-bound by design. Guardrails before inference. Accountable exceptions. Evidence on demand.
         </p>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* ⬇️ Updated: 2 columns on desktop */}
+        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-2">
           <PillarCard
             tone="blue"
             title="Tenant-Bound by Design"
@@ -159,7 +155,6 @@ function PillarCard({
       className={`group relative rounded-2xl border border-gray-200 dark:border-white/10 bg-white/80 dark:bg-gray-900/60
                   ring-1 ring-inset ${toneRing[tone]} backdrop-blur p-5 transition
                   hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20`}
-      style={{ transitionDuration: '250ms' }}
     >
       <div className="flex items-start gap-3">
         <span
@@ -173,7 +168,6 @@ function PillarCard({
           <div className="font-semibold text-gray-900 dark:text-white">{title}</div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{lead}</p>
 
-          {/* Expandable details */}
           <details className="mt-3 open:animate-[fadeIn_.2s_ease-out]">
             <summary className="cursor-pointer list-none select-none inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
               <Chevron />
@@ -186,7 +180,6 @@ function PillarCard({
             </ul>
           </details>
 
-          {/* Snippet + actions */}
           <div className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-medium text-gray-700 dark:text-gray-200">{snippetLabel}</div>
