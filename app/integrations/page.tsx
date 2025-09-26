@@ -1,5 +1,5 @@
 // app/integrations/page.tsx
-import IntegrationsDiagram from "@/components/IntegrationsDiagram";
+import HowItWorks from "@/components/HowItWorks";
 import ContactLargeFinal from "@/components/ContactLargeFinal";
 
 export default function IntegrationsPage() {
@@ -18,12 +18,12 @@ export default function IntegrationsPage() {
         </div>
       </section>
 
-      {/* Diagram */}
+      {/* Diagram (polished) */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-200 text-center mb-6">
           How it works
         </h2>
-        <IntegrationsDiagram />
+        <HowItWorks variant="flow" />
       </section>
 
       {/* Supported Platforms */}

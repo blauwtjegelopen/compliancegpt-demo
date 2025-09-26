@@ -26,6 +26,12 @@ export default function Footer() {
       ],
     },
     {
+      title: 'Resources',
+      links: [
+        { href: '/state-of-ai-governance', label: 'State of AI Governance' }, // ⬅️ new
+      ],
+    },
+    {
       title: 'Get in touch',
       links: [
         // Always anchor to the page’s contact section

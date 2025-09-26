@@ -13,6 +13,7 @@ export default function Navbar() {
     { href: '/pricing', label: 'Pricing' },
     { href: '/trust', label: 'Security & Trust' },
     { href: '/compare', label: 'Compare' },
+    { href: '/state-of-ai-governance', label: 'Research' }, // ⬅️ new
     { href: '/admin', label: 'Admin Demo' },
     { href: '/about', label: 'About Us' },
   ];
