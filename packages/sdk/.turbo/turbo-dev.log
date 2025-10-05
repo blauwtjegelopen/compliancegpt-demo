@@ -1,0 +1,10 @@
+
+> @layerzero/sdk@0.1.0 dev /Users/kimbellblauw/compliancegpt-demo/packages/sdk
+> tsc -w -p tsconfig.json
+
+[2J[3J[H[[90m12:19:10 PM[0m] Starting compilation in watch mode...
+
+[[90m12:19:11 PM[0m] Found 0 errors. Watching for file changes.
+
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed.[39m
+[43m[30m WARN [39m[49m  Local package.json exists, but node_modules missing, did you mean to install?

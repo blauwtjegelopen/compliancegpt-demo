@@ -1,7 +1,7 @@
 // app/admin/page.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   ShieldCheck,
   EyeOff,
@@ -15,13 +15,26 @@ import {
   Clipboard,
 } from "lucide-react";
 import ContactLargeFinal from "@/components/ContactLargeFinal";
+import { routeViaProxy } from "@/lib/proxy"; // NEW
 
 // --- Detectors & helpers ---------------------------------------------------
+// More forgiving, future-proof-ish patterns (demo-level)
 const EMAIL_RE = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
-const PHONE_RE = /\b(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3}[\s.-]?\d{2,4}\b/g;
-const NAME_RE = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/g;
-const INVOICE_RE = /\b(invoice|inv)[-\s]?\#?\s*\d{4,}\b/gi;
-const API_KEY_RE = /\b(sk-[A-Za-z0-9]{16,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36,})\b/g;
+
+// Accepts +country, spaces, dots, dashes, parentheses; 9+ digits total
+const PHONE_RE = /\+?\d[\d\s().-]{7,}\d/g;
+
+// Two+ capitalized tokens, allow hyphens/apostrophes (O'Neil, Jean-Luc)
+const NAME_RE = /\b([A-Z][a-z'’-]+(?:\s+[A-Z][a-z'’-]+)+)\b/g;
+
+// invoice/inv/bill/ref + optional #/-/space + 3+ digits
+const INVOICE_RE = /\b(?:invoice|inv|bill|ref)[-\s#]*\d{3,}\b/gi;
+
+// Common API key shapes: OpenAI sk-..., AWS AKIA..., GitHub ghp_...,
+// Slack xox..., and a loose JWT-ish catcher (eyJ...)
+// Negative look-aheads avoid leaving trailing characters.
+const API_KEY_RE =
+  /\b(?:sk-[A-Za-z0-9-_]{16,}(?![A-Za-z0-9-_])|AKIA[0-9A-Z]{16}(?![A-Z0-9])|ghp_[A-Za-z0-9]{36}(?![A-Za-z0-9])|xox[baprs]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])|eyJ[A-Za-z0-9._-]{10,}\.[A-Za-z0-9._-]{10,}\.[A-Za-z0-9._-]{10,}(?![A-Za-z0-9._-]))\b/g;
 
 function sanitizePrompt(input: string) {
   let redactions = 0;
@@ -32,11 +45,16 @@ function sanitizePrompt(input: string) {
     });
 
   let out = input;
+
+  // IMPORTANT: redact secrets first to avoid partial matches (e.g., PHONE)
+  out = redact(out, API_KEY_RE, "SECRET");
+
+  // Then PII / numbers
   out = redact(out, EMAIL_RE, "EMAIL");
   out = redact(out, PHONE_RE, "PHONE");
-  out = redact(out, API_KEY_RE, "SECRET");
   out = redact(out, INVOICE_RE, "NUMBER");
   out = redact(out, NAME_RE, "NAME");
+
   return { out, redactions };
 }
 
@@ -154,6 +172,10 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
     }
   };
 
+  // NEW: proxy call state
+  const [proxyResult, setProxyResult] = useState<any>(null);
+  const [isPending, startTransition] = useTransition();
+
   return (
     <main>
       {/* Header */}
@@ -204,6 +226,43 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
               <MetricCard icon={<KeySquare className="h-4 w-4" />} label="Secrets Detected" value={secretsCount} />
               <MetricCard icon={<Activity className="h-4 w-4" />} label="Blocked" value={pct(secretsCount > 0 ? 2.4 : 0.6)} />
             </div>
+
+            {/* NEW: Send via Proxy */}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => {
+                  startTransition(async () => {
+                    const payload = { messages: [{ role: "user", content: prompt }] };
+                    const res = await routeViaProxy(payload);
+                    setProxyResult(res);
+                  });
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-black text-white dark:bg-white dark:text-black text-sm"
+              >
+                {isPending ? "Sending…" : "Send via Proxy"}
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            {proxyResult && (
+              <div className="mt-4 rounded-xl border border-gray-200 dark:border-white/10 p-3">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Proxy findings</div>
+                <pre className="text-sm bg-gray-50 dark:bg-transparent p-2 rounded">
+                  {JSON.stringify(proxyResult.findings, null, 2)}
+                </pre>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-3 mb-1">Upstream response (mock)</div>
+                <pre className="text-sm bg-gray-50 dark:bg-transparent p-2 rounded">
+                  {JSON.stringify(proxyResult.data, null, 2)}
+                </pre>
+
+                {/* ERROR BANNER (added) */}
+                {proxyResult?.error && (
+                  <div className="mt-2 text-sm rounded border border-rose-200 bg-rose-50 p-2 text-rose-800 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300">
+                    Proxy error: {proxyResult.error}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right: Decision & Preview */}
@@ -226,7 +285,7 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
       </section>
 
       {/* Approval Workflow Queue */}
-      <section className="max-w-6xl mx_auto px-6 pb-14">
+      <section className="max-w-6xl mx-auto px-6 pb-14">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">Approval workflow</h2>
           <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">

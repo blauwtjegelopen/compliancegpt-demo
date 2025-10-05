@@ -1,0 +1,22 @@
+services:
+  mock:
+    image: ghcr.io/mccurdyc/mock-echo:latest
+    ports: ["4010:4010"]
+
+  proxy:
+    build:
+      context: ../
+      dockerfile: infra/docker/Dockerfile.proxy
+    environment:
+      - PROVIDER_URL=http://mock:4010/echo
+    ports: ["4000:4000"]
+    depends_on: [mock]
+
+  web:
+    build:
+      context: ../
+      dockerfile: infra/docker/Dockerfile.web
+    environment:
+      - NEXT_PUBLIC_PROXY_URL=http://localhost:4000
+    ports: ["3000:3000"]
+    depends_on: [proxy]

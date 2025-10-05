@@ -1,0 +1,29 @@
+
+> @apps/web@ dev /Users/kimbellblauw/compliancegpt-demo/apps/web
+> next dev -p 3000 -H 0.0.0.0
+
+  [1m[38;2;173;127;168m▲ Next.js 14.2.5[39m[22m
+  - Local:        http://localhost:3000
+  - Network:      http://0.0.0.0:3000
+  - Environments: .env.local
+
+ [32m[1m✓[22m[39m Starting...
+ [32m[1m✓[22m[39m Ready in 1574ms
+ [37m[1m○[22m[39m Compiling /_not-found ...
+ [32m[1m✓[22m[39m Compiled /_not-found in 546ms (522 modules)
+ GET /_next/static/webpack/0d6aaf61016e29ff.webpack.hot-update.json [33m404[39m in 634ms
+ [33m[1m⚠[22m[39m Fast Refresh had to perform a full reload due to a runtime error.
+ [32m[1m✓[22m[39m Compiled / in 112ms (550 modules)
+ GET / [32m200[39m in 167ms
+ GET /_next/static/webpack/0d6aaf61016e29ff.webpack.hot-update.json [33m404[39m in 34ms
+ [33m[1m⚠[22m[39m Fast Refresh had to perform a full reload due to a runtime error.
+ [32m[1m✓[22m[39m Compiled /api/integrations in 221ms (377 modules)
+ GET /api/integrations [32m200[39m in 333ms
+ GET /api/integrations [32m200[39m in 3ms
+ [32m[1m✓[22m[39m Compiled /integrations in 197ms (661 modules)
+ [32m[1m✓[22m[39m Compiled /features in 128ms (667 modules)
+ [32m[1m✓[22m[39m Compiled /pricing in 126ms (672 modules)
+ [32m[1m✓[22m[39m Compiled /admin in 273ms (605 modules)
+ [32m[1m✓[22m[39m Compiled /api/proxy in 95ms (311 modules)
+ POST /api/proxy [32m200[39m in 142ms
+[?25h

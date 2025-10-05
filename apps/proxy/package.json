@@ -1,0 +1,18 @@
+{
+  "name": "@apps/proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@fastify/cors": "^8.5.0",
+    "@policy/engine": "workspace:*",
+    "fastify": "^4.28.1",
+    "node-fetch": "^3.3.2",
+    "tsx": "^4.16.2"
+  }
+}

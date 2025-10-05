@@ -1,0 +1,10 @@
+
+> @apps/proxy@ dev /Users/kimbellblauw/compliancegpt-demo/apps/proxy
+> tsx watch src/server.ts
+
+{"level":30,"time":1759659550803,"pid":61373,"hostname":"Kimbells-MacBook-Pro.local","msg":"Server listening at http://0.0.0.0:4000"}
+{"level":30,"time":1759659550803,"pid":61373,"hostname":"Kimbells-MacBook-Pro.local","msg":"proxy up on http://0.0.0.0:4000"}
+{"level":30,"time":1759659754549,"pid":61373,"hostname":"Kimbells-MacBook-Pro.local","reqId":"req-1","req":{"method":"POST","url":"/v1/chat/completions","hostname":"127.0.0.1:4000","remoteAddress":"127.0.0.1","remotePort":58147},"msg":"incoming request"}
+{"level":30,"time":1759659754560,"pid":61373,"hostname":"Kimbells-MacBook-Pro.local","reqId":"req-1","res":{"statusCode":200},"responseTime":10.932624816894531,"msg":"request completed"}
+[90m12:28:43 PM[39m [96m[tsx][39m [33mPrevious process hasn't exited yet. Force killing...[39m
+[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 130.[39m
