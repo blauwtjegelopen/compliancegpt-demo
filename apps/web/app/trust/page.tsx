@@ -1,10 +1,16 @@
 // app/trust/page.tsx
 import LogoStrip from "@/components/LogoStrip";
 import TrustedControls from "@/components/TrustedControls";
-import SafeDataFlow from "@/components/SafeDataFlow"; // ⬅️ new
+import SafeDataFlow from "@/components/SafeDataFlow";
 import TrustFAQ from "@/components/TrustFAQ";
 import ContactLargeFinal from "@/components/ContactLargeFinal";
 import TrustPillars from "@/components/TrustPillars";
+
+// Newly added trust components
+import DataLifecycleTimeline from "@/components/DataLifecycleTimeline";
+import ZeroRetentionPolicy from "@/components/ZeroRetentionPolicy";
+import ByokDataResidency from "@/components/ByokDataResidency";
+import PolicyEngineWorkflow from "@/components/PolicyEngineWorkflow";
 
 export default function TrustPage() {
   return (
@@ -38,6 +44,7 @@ export default function TrustPage() {
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             We safeguard your data with policy, redaction, approvals, and audit—across every integration.
           </p>
+
           {/* Security Package CTA (top) */}
           <div className="mt-6 flex items-center justify-center">
             <a
@@ -62,9 +69,15 @@ export default function TrustPage() {
 
       <LogoStrip />
       <TrustedControls />
-      <SafeDataFlow /> {/* ⬅️ new */}
+      <SafeDataFlow />
 
-      {/* Trust pillars & architecture diagram */}
+      {/* 🔐 Trust Story: Data Lifecycle + Trust Pillars */}
+      <DataLifecycleTimeline />
+      <ZeroRetentionPolicy />
+      <ByokDataResidency />
+      <PolicyEngineWorkflow />
+
+      {/* Trust pillars (existing architecture visualization) */}
       <TrustPillars />
 
       {/* Compliance cards */}
@@ -78,23 +91,17 @@ export default function TrustPage() {
               SOC 2 Type II
             </h3>
             <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              Independent audit of security, availability, and confidentiality
-              controls.
+              Independent audit of security, availability, and confidentiality controls.
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-transparent">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-200">
-              GDPR
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-200">GDPR</h3>
             <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-              Data protection by design and default, with EU data residency
-              options.
+              Data protection by design and default, with EU data residency options.
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-transparent">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-200">
-              HIPAA
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-200">HIPAA</h3>
             <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
               Safeguards for handling PHI; BAAs available for eligible plans.
             </p>
@@ -108,8 +115,7 @@ export default function TrustPage() {
               Need details for procurement or security review?
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-300">
-              Download our Security Package with policies, architecture, and
-              audit scope.
+              Download our Security Package with policies, architecture, and audit scope.
             </div>
           </div>
           <a
@@ -147,7 +153,7 @@ export default function TrustPage() {
         </div>
       </section>
 
-      {/* Anchor target */}
+      {/* Contact anchor target */}
       <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
         <ContactLargeFinal />
       </div>

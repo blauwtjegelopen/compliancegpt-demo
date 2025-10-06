@@ -3,15 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Integration {
   id        String   @id @default(cuid())
   name      String
-  provider  String
+  provider  String   @unique
   apiKey    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  active    Boolean  @default(false)
+  baseUrl   String?
+  model     String?
+  region    String?
 }

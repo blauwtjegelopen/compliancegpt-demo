@@ -15,8 +15,10 @@ type ConnectPayload = {
 };
 
 type SavedConfig = Omit<ConnectPayload, "apiKey"> & {
-  // maskedKey is only for UI display; we never return raw keys from the API
-  maskedKey: string;
+  id: string;
+  maskedKey?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 function maskKey(k: string) {
@@ -26,17 +28,26 @@ function maskKey(k: string) {
 }
 
 export default function IntegrationsPage() {
-  // ---- local demo state; in step 2 this will be fetched from DB-backed API
-  const [saved, setSaved] = useState<SavedConfig | null>(null);
+  // Admin token (in-memory only) for protected POST/PUT/DELETE
+  const [adminToken, setAdminToken] = useState("");
+
+  // Server-backed list
+  const [items, setItems] = useState<SavedConfig[]>([]);
+  const [loadingList, setLoadingList] = useState(false);
+  const [listErr, setListErr] = useState<string | null>(null);
+
+  // Editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Demo preview (localStorage only)
+  const [savedDemo, setSavedDemo] = useState<Omit<SavedConfig, "id"> | null>(null);
 
   useEffect(() => {
     const raw = typeof window !== "undefined" ? localStorage.getItem("lz_integrations_demo") : null;
     if (raw) {
       try {
-        setSaved(JSON.parse(raw));
-      } catch {
-        // ignore
-      }
+        setSavedDemo(JSON.parse(raw));
+      } catch {}
     }
   }, []);
 
@@ -52,29 +63,73 @@ export default function IntegrationsPage() {
   const [testOk, setTestOk] = useState<null | string>(null);
   const [testErr, setTestErr] = useState<null | string>(null);
 
+  async function loadList() {
+    setLoadingList(true);
+    setListErr(null);
+    try {
+      const res = await fetch("/api/integrations", { method: "GET" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to fetch");
+      setItems(
+        (Array.isArray(data) ? data : []).map((x: any) => ({
+          id: x.id,
+          provider: x.provider,
+          baseUrl: x.baseUrl ?? "",
+          model: x.model ?? "",
+          region: x.region ?? "",
+          maskedKey: x.maskedKey ?? (x.apiKey ? maskKey(x.apiKey) : undefined),
+          createdAt: x.createdAt,
+          updatedAt: x.updatedAt,
+        }))
+      );
+    } catch (e: any) {
+      setListErr(e?.message || "Failed to fetch");
+    } finally {
+      setLoadingList(false);
+    }
+  }
+
+  useEffect(() => {
+    loadList();
+  }, []);
+
   async function saveConfig() {
     setSaving(true);
     setTestOk(null);
     setTestErr(null);
     try {
-      const res = await fetch("/api/integrations", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      if (form.provider === "azure" && !form.baseUrl?.trim()) {
+        throw new Error("Azure requires a Base URL (e.g. https://<resource>.openai.azure.com)");
+      }
+
+      const url = editingId ? `/api/integrations/${editingId}` : "/api/integrations";
+      const method = editingId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "content-type": "application/json",
+          ...(adminToken ? { "x-admin-token": adminToken } : {}),
+        },
         body: JSON.stringify(form),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to save config");
 
-      // persist to localStorage for the demo
-      const next: SavedConfig = {
+      await loadList();
+
+      const nextDemo = {
         provider: form.provider,
         baseUrl: form.baseUrl || undefined,
         model: form.model || undefined,
         region: form.region || undefined,
         maskedKey: maskKey(form.apiKey),
       };
-      localStorage.setItem("lz_integrations_demo", JSON.stringify(next));
-      setSaved(next);
+      localStorage.setItem("lz_integrations_demo", JSON.stringify(nextDemo));
+      setSavedDemo(nextDemo);
+
+      setForm((f) => ({ ...f, apiKey: "" }));
+      setEditingId(null);
     } catch (e: any) {
       alert(e?.message || e);
     } finally {
@@ -82,29 +137,76 @@ export default function IntegrationsPage() {
     }
   }
 
+  async function deleteConfig(id: string) {
+    if (!confirm("Delete this integration?")) return;
+    try {
+      const res = await fetch(`/api/integrations/${id}`, {
+        method: "DELETE",
+        headers: {
+          ...(adminToken ? { "x-admin-token": adminToken } : {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to delete");
+      await loadList();
+      if (editingId === id) {
+        setEditingId(null);
+        setForm((f) => ({ ...f, apiKey: "" }));
+      }
+    } catch (e: any) {
+      alert(e?.message || e);
+    }
+  }
+
+  function startEdit(item: SavedConfig) {
+    setEditingId(item.id);
+    setForm({
+      provider: item.provider,
+      apiKey: "",
+      baseUrl: item.baseUrl ?? "",
+      model: item.model ?? "",
+      region: item.region ?? "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm((f) => ({ ...f, apiKey: "" }));
+  }
+
   async function testConnection() {
     setTesting(true);
     setTestOk(null);
     setTestErr(null);
     try {
+      // Optional guardrails: Azure needs baseUrl
+      if (form.provider === "azure" && !form.baseUrl?.trim()) {
+        throw new Error("Azure requires a Base URL to test (e.g. https://<resource>.openai.azure.com)");
+      }
+
       const res = await fetch("/api/integrations/test", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Test failed");
+
+      // If your backend only has OpenAI test implemented, show a friendly notice.
+      if (!res.ok) {
+        if (data?.error?.includes("unsupported") || data?.error?.includes("not implemented")) {
+          throw new Error(
+            `Test for "${form.provider}" isn't implemented server-side yet. The connection may still save fine.`
+          );
+        }
+        throw new Error(data?.error || "Test failed");
+      }
       setTestOk(data?.message || "Connection OK");
     } catch (e: any) {
       setTestErr(e?.message || "Test failed");
     } finally {
       setTesting(false);
     }
-  }
-
-  function clearConfig() {
-    localStorage.removeItem("lz_integrations_demo");
-    setSaved(null);
   }
 
   const providerHelp = useMemo(() => {
@@ -114,21 +216,24 @@ export default function IntegrationsPage() {
           basePlaceholder: "https://api.openai.com/v1 (optional)",
           modelPlaceholder: "e.g. gpt-4o-mini",
           keyPlaceholder: "sk-********************************",
+          baseRequired: false,
         };
       case "anthropic":
         return {
           basePlaceholder: "https://api.anthropic.com (optional)",
           modelPlaceholder: "e.g. claude-3-haiku-20240307",
           keyPlaceholder: "anthropic-key",
+          baseRequired: false,
         };
       case "azure":
         return {
           basePlaceholder: "https://<resource>.openai.azure.com (required)",
-          modelPlaceholder: "your deployment name (e.g. gpt-4o-mini)",
+          modelPlaceholder: "deployment name (e.g. gpt-4o-mini)",
           keyPlaceholder: "azure-openai-key",
+          baseRequired: true,
         };
       default:
-        return { basePlaceholder: "", modelPlaceholder: "", keyPlaceholder: "" };
+        return { basePlaceholder: "", modelPlaceholder: "", keyPlaceholder: "", baseRequired: false };
     }
   }, [form.provider]);
 
@@ -147,7 +252,7 @@ export default function IntegrationsPage() {
         </div>
       </section>
 
-      {/* Diagram (polished) */}
+      {/* Diagram */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-200 text-center mb-6">
           How it works
@@ -155,7 +260,100 @@ export default function IntegrationsPage() {
         <HowItWorks variant="flow" />
       </section>
 
-      {/* Supported Platforms */}
+      {/* Position + Modes */}
+      <section className="max-w-6xl mx-auto px-6 pb-16">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-200 mb-6 text-center">
+          Where LayerZero fits — and how you deploy it
+        </h2>
+
+        <div className="rounded-2xl border bg-white p-6 mb-8 dark:border-white/10 dark:bg-transparent">
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 text-center">
+            Whether employees use ChatGPT in the browser or your apps call an LLM API directly,
+            LayerZero intercepts traffic <span className="whitespace-nowrap">before egress</span> — scanning,
+            redacting, approving, and auditing in-line.
+          </p>
+          <div className="grid md:grid-cols-5 gap-4 text-center items-center text-sm text-gray-700 dark:text-gray-300">
+            <div className="p-4 rounded-xl border bg-gray-50 dark:bg-gray-800 dark:border-white/10">
+              🧑‍💻 User / App
+              <div className="text-xs text-gray-500 mt-1">Browser · SDK · Internal tool</div>
+            </div>
+            <div className="text-gray-400">➡️</div>
+            <div className="p-4 rounded-xl border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20">
+              🧠 LayerZero Proxy
+              <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">Redact · Approve · Audit</div>
+            </div>
+            <div className="text-gray-400">➡️</div>
+            <div className="p-4 rounded-xl border bg-gray-50 dark:bg-gray-800 dark:border-white/10">
+              🌐 LLM Provider
+              <div className="text-xs text-gray-500 mt-1">OpenAI · Anthropic · Azure</div>
+            </div>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-xs mt-4 text-center">
+            BYOK: Your organization’s API keys call the model. LayerZero enforces policy and logs events; keys and raw prompts aren’t retained.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            {
+              title: "Network Proxy",
+              badge: "Zero app changes",
+              body:
+                "Route browser + API traffic through LayerZero (proxy/DNS). Transparent inspection and forwarding with central policy control.",
+              bullets: [
+                "Covers ChatGPT-in-browser + APIs",
+                "Fastest org-wide rollout",
+                "Global allow/deny, data regions",
+              ],
+            },
+            {
+              title: "SDK Adapter",
+              badge: "Developer-friendly",
+              body:
+                "Swap direct OpenAI/Claude SDKs with LayerZero’s client. Same ergonomics; adds redaction, approvals, and audit.",
+              bullets: [
+                "Minimal code diff",
+                "Per-app policies & routing",
+                "Fine-grained observability",
+              ],
+            },
+            {
+              title: "Reverse Proxy (BYOK)",
+              badge: "Keep your keys",
+              body:
+                "Your keys, your tenancy. LayerZero redacts then forwards using your credentials; we never store or reuse them.",
+              bullets: [
+                "Keys remain in your control",
+                "Pre-egress redaction",
+                "Complete audit trail",
+              ],
+            },
+          ].map((c) => (
+            <div
+              key={c.title}
+              className="rounded-2xl border bg-white p-6 dark:border-white/10 dark:bg-transparent"
+            >
+              <div className="flex items-center justify-between">
+                <div className="font-semibold text-gray-900 dark:text-gray-200">{c.title}</div>
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                  {c.badge}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{c.body}</p>
+              <ul className="mt-3 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                {c.bullets.map((b) => (
+                  <li key={b} className="flex items-start gap-2">
+                    <span className="mt-1">•</span>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Supported */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-200 mb-6 text-center">
           Supported integrations
@@ -177,38 +375,7 @@ export default function IntegrationsPage() {
         </p>
       </section>
 
-      {/* Deployment options */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            {
-              title: "Drop-in Proxy",
-              description:
-                "Point your application at LayerZero’s endpoint. Requests are filtered and forwarded instantly to your provider.",
-            },
-            {
-              title: "SDK Integration",
-              description:
-                "Embed policy enforcement directly in your app using our lightweight client libraries.",
-            },
-            {
-              title: "API Gateway",
-              description:
-                "Connect via REST API to control data before it ever leaves your environment.",
-            },
-          ].map((opt) => (
-            <div
-              key={opt.title}
-              className="rounded-2xl border bg-white p-6 dark:border-white/10 dark:bg-transparent"
-            >
-              <div className="font-semibold text-gray-900 dark:text-gray-200">{opt.title}</div>
-              <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">{opt.description}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Example workflow */}
+      {/* Example */}
       <section className="max-w-6xl mx-auto px-6 pb-16">
         <div className="rounded-2xl border bg-white p-6 dark:border-white/10 dark:bg-transparent">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-200 mb-6">
@@ -229,58 +396,57 @@ about invoice [REDACTED_NUMBER] due next week."`}</pre>
         </div>
       </section>
 
-      {/* BYOK Connect card */}
-      <section className="max-w-6xl mx-auto px-6 pb-16">
+      {/* BYOK Connect + Manage */}
+      <section className="max-w-6xl mx-auto px-6 pb-16" id="byok">
         <div className="rounded-2xl border bg-white p-6 dark:border-white/10 dark:bg-transparent">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-200 mb-4">Connect your provider (BYOK)</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-            Bring your own LLM contract. Keys are sent to the backend for validation only; for this demo they’re
-            stored in your browser (localStorage). In step 2 we’ll store them server-side (DB + KMS).
+            Bring your own LLM contract. Keys are validated server-side; for this demo, we also show a local preview.
+            In production, keys live in your environment (DB + KMS), never sent to clients.
           </p>
 
-          {/* Provider selector */}
-          <div className="grid sm:grid-cols-2 gap-4 mb-4">
-            <button
-              onClick={() => setForm((f) => ({ ...f, provider: "openai" }))}
-              className={`rounded-xl border p-4 text-left ${
-                form.provider === "openai"
-                  ? "border-black dark:border-white"
-                  : "border-gray-200 dark:border-white/10"
-              }`}
-            >
-              <div className="font-medium">OpenAI API</div>
-              <div className="text-sm text-gray-500">Best default. Global endpoints.</div>
-            </button>
-            <button
-              disabled
-              title="Coming soon"
-              className="rounded-xl border p-4 text-left border-gray-200 dark:border-white/10 opacity-50 cursor-not-allowed"
-            >
-              <div className="font-medium">Anthropic (Claude)</div>
-              <div className="text-sm text-gray-500">Coming soon</div>
-            </button>
-            <button
-              disabled
-              title="Coming soon"
-              className="rounded-xl border p-4 text-left border-gray-200 dark:border-white/10 opacity-50 cursor-not-allowed"
-            >
-              <div className="font-medium">Azure OpenAI</div>
-              <div className="text-sm text-gray-500">Coming soon</div>
-            </button>
-            <button
-              disabled
-              title="Coming soon"
-              className="rounded-xl border p-4 text-left border-gray-200 dark:border-white/10 opacity-50 cursor-not-allowed"
-            >
-              <div className="font-medium">Others</div>
-              <div className="text-sm text-gray-500">Bedrock, Vertex, Local (soon)</div>
-            </button>
+          {/* Admin token */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">Admin token (local dev)</label>
+            <input
+              type="password"
+              className="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
+              placeholder="dev-shared-admin-token"
+              value={adminToken}
+              onChange={(e) => setAdminToken(e.target.value)}
+              autoComplete="off"
+            />
+            <p className="mt-1 text-xs text-gray-500">Needed for create/update/delete API calls.</p>
+          </div>
+
+          {/* Provider selector — all enabled now */}
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            {([
+              { id: "openai", title: "OpenAI API", desc: "Best default. Global endpoints." },
+              { id: "anthropic", title: "Anthropic (Claude)", desc: "Fast, low-latency models." },
+              { id: "azure", title: "Azure OpenAI", desc: "Enterprise deployments." },
+            ] as Array<{ id: Provider; title: string; desc: string }>).map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setForm((f) => ({ ...f, provider: p.id }))}
+                className={`rounded-xl border p-4 text-left ${
+                  form.provider === p.id
+                    ? "border-black dark:border-white"
+                    : "border-gray-200 dark:border-white/10"
+                }`}
+              >
+                <div className="font-medium">{p.title}</div>
+                <div className="text-sm text-gray-500">{p.desc}</div>
+              </button>
+            ))}
           </div>
 
           {/* Form */}
           <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">API Key</label>
+              <label className="block text-sm font-medium mb-1">
+                API Key {editingId ? <span className="text-gray-400">(leave blank to keep)</span> : null}
+              </label>
               <input
                 type="password"
                 className="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
@@ -289,19 +455,26 @@ about invoice [REDACTED_NUMBER] due next week."`}</pre>
                 onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))}
                 autoComplete="off"
               />
-              <p className="mt-1 text-xs text-gray-500">
-                Keep keys server-side in production. Never ship to the browser.
-              </p>
+              <p className="mt-1 text-xs text-gray-500">Keep keys server-side in production.</p>
             </div>
+
             <div>
-              <label className="block text-sm font-medium mb-1">Base URL (optional)</label>
+              <label className="block text-sm font-medium mb-1">
+                Base URL {providerHelp.baseRequired ? <span className="text-rose-600">*</span> : null}
+              </label>
               <input
                 className="w-full rounded-md border px-3 py-2 text-sm bg-white dark:bg-transparent border-gray-200 dark:border-white/10"
                 placeholder={providerHelp.basePlaceholder}
                 value={form.baseUrl}
                 onChange={(e) => setForm((f) => ({ ...f, baseUrl: e.target.value }))}
               />
+              {providerHelp.baseRequired && (
+                <p className="mt-1 text-xs text-rose-600">
+                  Azure requires a resource URL: e.g. https://&lt;resource&gt;.openai.azure.com
+                </p>
+              )}
             </div>
+
             <div>
               <label className="block text-sm font-medium mb-1">Default Model</label>
               <input
@@ -311,28 +484,29 @@ about invoice [REDACTED_NUMBER] due next week."`}</pre>
                 onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
               />
             </div>
+
             <div className="flex items-end gap-2">
               <button
                 onClick={saveConfig}
-                disabled={!form.apiKey || saving}
+                disabled={saving || (!editingId && !form.apiKey)}
                 className="rounded-md bg-black text-white px-4 py-2 text-sm disabled:opacity-50 dark:bg-white dark:text-black"
+                title={editingId ? "Save changes" : "Create integration"}
               >
-                {saving ? "Saving…" : "Save connection"}
+                {saving ? (editingId ? "Saving…" : "Creating…") : editingId ? "Save changes" : "Create integration"}
               </button>
               <button
                 onClick={testConnection}
-                disabled={!form.apiKey || testing}
+                disabled={!form.apiKey || testing || (form.provider === "azure" && !form.baseUrl?.trim())}
                 className="rounded-md border px-4 py-2 text-sm dark:border-white/10"
-                title="Validates your key against provider (no token spend for OpenAI)"
+                title="Validate your key against the provider"
               >
                 {testing ? "Testing…" : "Test connection"}
               </button>
-              <button
-                onClick={clearConfig}
-                className="rounded-md border px-4 py-2 text-sm dark:border-white/10"
-              >
-                Clear
-              </button>
+              {editingId && (
+                <button onClick={cancelEdit} className="rounded-md border px-4 py-2 text-sm dark:border-white/10">
+                  Cancel edit
+                </button>
+              )}
             </div>
           </div>
 
@@ -350,16 +524,87 @@ about invoice [REDACTED_NUMBER] due next week."`}</pre>
             )}
           </div>
 
-          {/* Current saved (demo) */}
-          <div className="mt-6 rounded-xl border p-4 dark:border-white/10">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Current (demo) configuration</div>
-            {saved ? (
-              <pre className="text-sm bg-gray-50 dark:bg-transparent p-2 rounded">
-                {JSON.stringify(saved, null, 2)}
-              </pre>
-            ) : (
-              <div className="text-sm text-gray-500">No provider connected yet.</div>
+          {/* Server list + actions */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between">
+              <div className="text-lg font-semibold text-gray-900 dark:text-gray-200">Saved integrations</div>
+              <button
+                onClick={loadList}
+                className="text-sm underline text-gray-600 dark:text-gray-400 disabled:opacity-50"
+                disabled={loadingList}
+              >
+                {loadingList ? "Refreshing…" : "Refresh"}
+              </button>
+            </div>
+
+            {listErr && (
+              <div className="mt-2 rounded-md bg-rose-50 text-rose-700 px-3 py-2 text-sm dark:bg-rose-900/20 dark:text-rose-300">
+                {listErr}
+              </div>
             )}
+
+            <div className="mt-3 rounded-xl border overflow-hidden dark:border-white/10">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-white/5">
+                  <tr className="text-left text-gray-700 dark:text-gray-300">
+                    <th className="py-3 px-4">Provider</th>
+                    <th className="py-3 px-4">Model</th>
+                    <th className="py-3 px-4">Base URL</th>
+                    <th className="py-3 px-4">Key</th>
+                    <th className="py-3 px-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+                  {items.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-6 px-4 text-gray-500 text-center">
+                        No integrations yet.
+                      </td>
+                    </tr>
+                  )}
+                  {items.map((it) => (
+                    <tr key={it.id} className="text-gray-800 dark:text-gray-300">
+                      <td className="py-3 px-4 whitespace-nowrap">{it.provider}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">{it.model || "-"}</td>
+                      <td className="py-3 px-4 whitespace-nowrap max-w-xs truncate" title={it.baseUrl || ""}>
+                        {it.baseUrl || "-"}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {it.maskedKey || "••••"}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => startEdit(it)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteConfig(it.id)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs text-rose-700 dark:text-rose-300 border-gray-300 dark:border-white/10 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Demo preview */}
+            <div className="mt-6 rounded-xl border p-4 dark:border-white/10">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">Current (demo) configuration</div>
+              {savedDemo ? (
+                <pre className="text-sm bg-gray-50 dark:bg-transparent p-2 rounded">
+                  {JSON.stringify(savedDemo, null, 2)}
+                </pre>
+              ) : (
+                <div className="text-sm text-gray-500">No provider connected yet.</div>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -384,7 +629,7 @@ about invoice [REDACTED_NUMBER] due next week."`}</pre>
         </div>
       </section>
 
-      {/* Contact anchor target */}
+      {/* Contact */}
       <div id="contact" className="max-w-6xl mx-auto px-6 pb-16">
         <ContactLargeFinal />
       </div>
