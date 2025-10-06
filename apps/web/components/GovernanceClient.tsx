@@ -2,62 +2,96 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { Telemetry } from '@/types/telemetry';
 
-export default function GovernanceClient({ initialData }: { initialData: Telemetry[] }) {
+/** Accept a broad/loose telemetry shape (matches external type with optionals). */
+type InTelemetry = {
+  industry?: string;
+  month?: string;
+  redactionRate?: number;
+  blockRate?: number;
+  timeToApproveSec?: number;
+  escalationsPer1000?: number;
+  piiTypes?: Record<string, number>;
+};
+
+/** Internal normalized shape (we guarantee industry is set). */
+type Telemetry = InTelemetry & {
+  industry: 'All' | 'Finance' | 'Healthcare' | 'SaaS' | 'Public Sector' | string;
+};
+
+export default function GovernanceClient({ initialData }: { initialData: InTelemetry[] }) {
+  // Normalize incoming data (fill missing industry with "All")
+  const normalized: Telemetry[] = useMemo(
+    () =>
+      (initialData ?? []).map((d) => ({
+        ...d,
+        industry: (d.industry ?? 'All') as Telemetry['industry'],
+      })),
+    [initialData]
+  );
+
   const [industry, setIndustry] = useState<Telemetry['industry']>('All');
-  const hasData = initialData && initialData.length > 0;
+  const hasData = normalized.length > 0;
+
+  // helpers
+  const n = (v?: number) => (typeof v === 'number' && isFinite(v) ? v : 0);
+  const s = (v?: string) => v ?? '';
 
   // Group by industry
   const byIndustry = useMemo(() => {
     const map = new Map<Telemetry['industry'], Telemetry[]>();
-    (initialData ?? []).forEach((d) => {
+    normalized.forEach((d) => {
       const arr = map.get(d.industry) ?? [];
       arr.push(d);
       map.set(d.industry, arr);
     });
-    // ensure month order
-    map.forEach((arr) => arr.sort((a, b) => a.month.localeCompare(b.month)));
+    // ensure month order (null-safe)
+    map.forEach((arr) => arr.sort((a, b) => s(a.month).localeCompare(s(b.month))));
     return map;
-  }, [initialData]);
+  }, [normalized]);
 
   const seriesAll = useMemo(() => byIndustry.get('All') ?? [], [byIndustry]);
   const currentSeries = useMemo(
-    () => byIndustry.get(industry) ?? (byIndustry.get('All') ?? []),
-    [byIndustry, industry]
+    () => byIndustry.get(industry) ?? seriesAll,
+    [byIndustry, industry, seriesAll]
   );
 
   const latestAll = seriesAll.at(-1) ?? null;
   const latest = currentSeries.at(-1) ?? null;
 
-  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
 
-  // Comparative deltas vs All (for executive summary and WhyThisMatters when not "All")
+  // Comparative deltas vs All
   const deltas = useMemo(() => {
     if (!latest || !latestAll) return null;
     return {
-      redactionRate: latest.redactionRate - latestAll.redactionRate,
-      blockRate: latest.blockRate - latestAll.blockRate,
-      timeToApproveSec: latest.timeToApproveSec - latestAll.timeToApproveSec,
-      escalationsPer1000: latest.escalationsPer1000 - latestAll.escalationsPer1000,
+      redactionRate: n(latest.redactionRate) - n(latestAll.redactionRate),
+      blockRate: n(latest.blockRate) - n(latestAll.blockRate),
+      timeToApproveSec: n(latest.timeToApproveSec) - n(latestAll.timeToApproveSec),
+      escalationsPer1000: n(latest.escalationsPer1000) - n(latestAll.escalationsPer1000),
     };
   }, [latest, latestAll]);
 
-  // Cross-industry callouts (who’s highest/lowest this month)
+  // Cross-industry callouts
   const crossIndustryLatest = useMemo(() => {
     if (!byIndustry.size) return null;
     const month = latestAll?.month ?? Array.from(byIndustry.values())[0]?.at(-1)?.month;
     if (!month) return null;
+
     const snapshot = Array.from(byIndustry.entries())
       .filter(([k]) => k !== 'All')
       .map(([_, arr]) => arr.find((d) => d.month === month))
       .filter(Boolean) as Telemetry[];
 
-    const maxBy = (key: keyof Pick<Telemetry, 'redactionRate' | 'blockRate' | 'timeToApproveSec' | 'escalationsPer1000'>) =>
-      snapshot.reduce((m, v) => (m && (m[key] ?? 0) > (v[key] ?? 0) ? m : v), snapshot[0]);
+    if (!snapshot.length) return null;
 
-    const minBy = (key: keyof Pick<Telemetry, 'redactionRate' | 'blockRate' | 'timeToApproveSec' | 'escalationsPer1000'>) =>
-      snapshot.reduce((m, v) => (m && (m[key] ?? 0) < (v[key] ?? 0) ? m : v), snapshot[0]);
+    const maxBy = (
+      key: keyof Pick<Telemetry, 'redactionRate' | 'blockRate' | 'timeToApproveSec' | 'escalationsPer1000'>
+    ) => snapshot.reduce((m, v) => (n(m?.[key]) > n(v?.[key]) ? m : v), snapshot[0]);
+
+    const minBy = (
+      key: keyof Pick<Telemetry, 'redactionRate' | 'blockRate' | 'timeToApproveSec' | 'escalationsPer1000'>
+    ) => snapshot.reduce((m, v) => (n(m?.[key]) < n(v?.[key]) ? m : v), snapshot[0]);
 
     return {
       month,
@@ -91,7 +125,7 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
           <DownloadCsv data={currentSeries} />
 
           <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
-            {latest ? `Latest: ${latest.month}` : hasData ? '' : 'No telemetry available'}
+            {latest ? `Latest: ${s(latest.month)}` : hasData ? '' : 'No telemetry available'}
           </span>
         </div>
       </section>
@@ -107,12 +141,22 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
         </section>
       ) : (
         <>
-          {/* --- Why this matters (now handles "All" with absolute values) --- */}
+          {/* --- Why this matters --- */}
           {latest && latestAll && (
             <WhyThisMatters
               industry={industry}
-              latest={latest}
-              latestAll={latestAll}
+              latest={{
+                ...latest,
+                redactionRate: n(latest.redactionRate),
+                blockRate: n(latest.blockRate),
+                timeToApproveSec: n(latest.timeToApproveSec),
+              }}
+              latestAll={{
+                ...latestAll,
+                redactionRate: n(latestAll.redactionRate),
+                blockRate: n(latestAll.blockRate),
+                timeToApproveSec: n(latestAll.timeToApproveSec),
+              }}
               deltas={deltas}
               pct={pct}
             />
@@ -128,7 +172,7 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
                       Executive Summary — {industry}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Benchmarked against All industries ({latestAll.month})
+                      Benchmarked against All industries ({s(latestAll.month)})
                     </div>
                   </div>
                   <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-white/10 px-3 py-1 text-xs text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg:white/5 dark:bg-opacity-5">
@@ -139,26 +183,26 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <SummaryCard
                     label="Prompts with redactions"
-                    value={pct(latest.redactionRate)}
+                    value={pct(n(latest.redactionRate))}
                     delta={deltas?.redactionRate ?? 0}
                     goodIsLower
                   />
                   <SummaryCard
                     label="Policy blocks"
-                    value={pct(latest.blockRate)}
+                    value={pct(n(latest.blockRate))}
                     delta={deltas?.blockRate ?? 0}
                     goodIsLower
                   />
                   <SummaryCard
                     label="Avg. approval time"
-                    value={`${latest.timeToApproveSec}s`}
+                    value={`${n(latest.timeToApproveSec)}s`}
                     delta={deltas?.timeToApproveSec ?? 0}
                     unit="s"
                     goodIsLower
                   />
                   <SummaryCard
                     label="Escalations per 1k"
-                    value={`${latest.escalationsPer1000}`}
+                    value={`${n(latest.escalationsPer1000)}`}
                     delta={deltas?.escalationsPer1000 ?? 0}
                     goodIsLower
                   />
@@ -167,23 +211,23 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
             </section>
           )}
 
-          {/* --- Industry Callouts (storytelling) --- */}
+          {/* --- Industry Callouts --- */}
           {crossIndustryLatest && (
             <section className="max-w-6xl mx-auto px-6 pt-2 pb-4">
               <div className="grid md:grid-cols-3 gap-4">
                 <Callout
                   title="Where redaction is highest"
-                  kpi={pct(crossIndustryLatest.highestRedaction.redactionRate)}
+                  kpi={pct(n(crossIndustryLatest.highestRedaction.redactionRate))}
                   caption={`${crossIndustryLatest.highestRedaction.industry} — ${crossIndustryLatest.month}`}
                 />
                 <Callout
                   title="Where blocks are most common"
-                  kpi={pct(crossIndustryLatest.highestBlock.blockRate)}
+                  kpi={pct(n(crossIndustryLatest.highestBlock.blockRate))}
                   caption={`${crossIndustryLatest.highestBlock.industry} — ${crossIndustryLatest.month}`}
                 />
                 <Callout
                   title="Fastest approvals"
-                  kpi={`${crossIndustryLatest.fastestApproval.timeToApproveSec}s`}
+                  kpi={`${n(crossIndustryLatest.fastestApproval.timeToApproveSec)}s`}
                   caption={`${crossIndustryLatest.fastestApproval.industry} — ${crossIndustryLatest.month}`}
                 />
               </div>
@@ -194,10 +238,14 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
           {latest && (
             <section className="max-w-6xl mx-auto px-6 py-6">
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard label="Prompts with redactions" value={pct(latest.redactionRate)} hint="Lower is better" />
-                <KpiCard label="Policy blocks" value={pct(latest.blockRate)} hint="Lower is better" />
-                <KpiCard label="Avg. approval time" value={`${latest.timeToApproveSec}s`} hint="Human-in-the-loop" />
-                <KpiCard label="Escalations per 1k prompts" value={`${latest.escalationsPer1000}`} hint="Risk triage load" />
+                <KpiCard label="Prompts with redactions" value={pct(n(latest.redactionRate))} hint="Lower is better" />
+                <KpiCard label="Policy blocks" value={pct(n(latest.blockRate))} hint="Lower is better" />
+                <KpiCard label="Avg. approval time" value={`${n(latest.timeToApproveSec)}s`} hint="Human-in-the-loop" />
+                <KpiCard
+                  label="Escalations per 1k prompts"
+                  value={`${n(latest.escalationsPer1000)}`}
+                  hint="Risk triage load"
+                />
               </div>
             </section>
           )}
@@ -206,15 +254,21 @@ export default function GovernanceClient({ initialData }: { initialData: Telemet
           <section className="max-w-6xl mx-auto px-6 pb-4">
             <div className="grid lg:grid-cols-3 gap-4">
               <Card title="Redaction rate trend" subtitle="Past 6 months (All industries)">
-                <LineSpark data={(seriesAll ?? []).map((d) => d.redactionRate)} format={(v) => `${Math.round(v * 100)}%`} />
+                <LineSpark
+                  data={(seriesAll ?? []).map((d) => n(d.redactionRate))}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                />
               </Card>
 
               <Card title="Block rate trend" subtitle="Past 6 months (All industries)">
-                <LineSpark data={(seriesAll ?? []).map((d) => d.blockRate)} format={(v) => `${Math.round(v * 100)}%`} />
+                <LineSpark
+                  data={(seriesAll ?? []).map((d) => n(d.blockRate))}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                />
               </Card>
 
               <Card title="PII distribution" subtitle={`${industry} — latest month`}>
-                <BarMini data={latest ? Object.entries(latest.piiTypes) : []} />
+                <BarMini data={latest ? Object.entries(latest.piiTypes ?? {}) : []} />
               </Card>
             </div>
 
@@ -257,11 +311,10 @@ function WhyThisMatters({
   pct: (n: number) => string;
 }) {
   const isAll = industry === 'All';
-  const topPii = Object.entries(latest.piiTypes).sort((a, b) => b[1] - a[1])[0];
+  const topPii = Object.entries(latest.piiTypes ?? {}).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0];
 
-  // When "All", show absolute; otherwise show vs-benchmark deltas
-  const redactionDisplay = isAll ? pct(latestAll.redactionRate) : asPercent(deltas?.redactionRate ?? 0);
-  const blockDisplay = isAll ? pct(latestAll.blockRate) : asPercent(deltas?.blockRate ?? 0);
+  const redactionDisplay = isAll ? pct(latest.redactionRate ?? 0) : asPercent(deltas?.redactionRate ?? 0);
+  const blockDisplay = isAll ? pct(latest.blockRate ?? 0) : asPercent(deltas?.blockRate ?? 0);
 
   const redactionLabel = isAll ? 'All (latest) — Redactions' : 'All vs. benchmark — Redactions';
   const blockLabel = isAll ? 'All (latest) — Blocks' : 'All vs. benchmark — Blocks';
@@ -291,7 +344,7 @@ function WhyThisMatters({
 
           {/* Top PII */}
           <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-gray-900 p-4">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Top PII signal ({latest.month})</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Top PII signal ({latest.month ?? '—'})</div>
             <div className="mt-1 text-2xl font-extrabold text-gray-900 dark:text-white">
               {topPii ? `${topPii[0]} ${topPii[1]}%` : '—'}
             </div>
@@ -299,7 +352,7 @@ function WhyThisMatters({
         </div>
 
         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          Benchmarked against “All industries” ({latestAll.month}). Lower redactions/blocks and faster approvals are
+          Benchmarked against “All industries” ({latestAll.month ?? '—'}). Lower redactions/blocks and faster approvals are
           better.
         </p>
       </div>
@@ -395,12 +448,9 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 /** Minimal line sparkline using inline SVG (no deps). */
 function LineSpark({ data, format }: { data: number[]; format?: (v: number) => string }) {
   if (!data?.length) return <div className="h-20 rounded bg-gray-50 dark:bg-white/5" />;
-  const w = 320,
-    h = 72,
-    pad = 8;
-  const xs = (i: number) => pad + (i * (w - pad * 2)) / (data.length - 1 || 1);
-  const min = Math.min(...data),
-    max = Math.max(...data);
+  const w = 320, h = 72, pad = 8;
+  const xs = (i: number) => pad + (i * (w - pad * 2)) / Math.max(data.length - 1, 1);
+  const min = Math.min(...data), max = Math.max(...data);
   const ys = (v: number) => (max === min ? h / 2 : pad + (h - pad * 2) * (1 - (v - min) / (max - min)));
   const d = data.map((v, i) => `${i === 0 ? 'M' : 'L'} ${xs(i)} ${ys(v)}`).join(' ');
   const last = data[data.length - 1];
@@ -421,21 +471,19 @@ function LineSpark({ data, format }: { data: number[]; format?: (v: number) => s
 function BarMini({ data }: { data: [string, number][] }) {
   if (!data?.length) return <div className="h-28 rounded bg-gray-50 dark:bg-white/5" />;
   const max = Math.max(...data.map(([, v]) => v));
-  const w = 320,
-    h = 120,
-    gap = 10;
+  const w = 320, h = 120, gap = 10;
   const barW = (w - gap * (data.length - 1)) / data.length;
 
   return (
     <div className="text-xs">
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-28">
         {data.map(([k, v], i) => {
-          const bh = Math.round((v / max) * (h - 20));
+          const bh = Math.round((v / (max || 1)) * (h - 20));
           const x = i * (barW + gap);
           const y = h - bh;
           return (
             <g key={k}>
-              <rect x={x} y={y} width={barW} height={bh} rx="6" className="fill-gray-200 dark:fill-white/15" />
+              <rect x={x} y={y} width={barW} height={bh} rx="6" className="fill-gray-2 00 dark:fill-white/15" />
               <text x={x + barW / 2} y={h - 4} textAnchor="middle" className="fill-gray-600 dark:fill-gray-300">
                 {k}
               </text>
@@ -447,7 +495,7 @@ function BarMini({ data }: { data: [string, number][] }) {
   );
 }
 
-function DownloadCsv({ data }: { data: Telemetry[] }) {
+function DownloadCsv({ data }: { data: InTelemetry[] }) {
   const onClick = () => {
     if (!data?.length) return;
     const headers = [
@@ -463,12 +511,12 @@ function DownloadCsv({ data }: { data: Telemetry[] }) {
       'Address',
     ];
     const rows = data.map((d) => [
-      d.industry,
-      d.month,
-      d.redactionRate,
-      d.blockRate,
-      d.timeToApproveSec,
-      d.escalationsPer1000,
+      d.industry ?? '',
+      d.month ?? '',
+      d.redactionRate ?? '',
+      d.blockRate ?? '',
+      d.timeToApproveSec ?? '',
+      d.escalationsPer1000 ?? '',
       d.piiTypes?.Email ?? '',
       d.piiTypes?.Name ?? '',
       d.piiTypes?.Phone ?? '',
