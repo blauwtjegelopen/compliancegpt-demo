@@ -1,14 +1,22 @@
-cat > apps/web/tsconfig.json <<'EOF'
+cat > apps/web/tsconfig.json <<'JSON'
 {
   "extends": "@tsconfig/next/tsconfig.json",
   "compilerOptions": {
     "strict": false,
+    "jsx": "preserve",
+    "allowJs": true,
+    "types": ["node", "react"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }
-EOF
+JSON
