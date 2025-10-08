@@ -1,10 +1,9 @@
 {
   "version": 2,
-  "rootDirectory": "apps/web",
-  "buildCommand": "pnpm install && pnpm build",
-  "installCommand": "pnpm install",
-  "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
+  "buildCommand": "pnpm --filter @apps/web... build",
+  "installCommand": "pnpm --filter @apps/web... install",
+  "outputDirectory": "apps/web/.next",
   "headers": [
     {
       "source": "/(.*)",
