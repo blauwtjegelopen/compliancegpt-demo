@@ -1,8 +1,10 @@
+/* Tailwind (keep as you have it) */
 @import "tailwindcss";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Base */
 html, body { 
   height: 100%; 
 }
@@ -12,7 +14,7 @@ body {
   background: #ffffff; 
 }
 
-/* --- Step 5: smooth scrolling + sticky-header offset --- */
+/* --- Smooth scrolling + sticky-header offset --- */
 html {
   scroll-behavior: smooth;
 }
@@ -22,18 +24,60 @@ html {
   html { scroll-behavior: auto; }
 }
 
-/* Ensure in-page anchors don't hide under the 64px navbar */
+/* Ensure in-page anchors don't hide under the ~80px header */
 :target {
-  scroll-margin-top: 5rem; /* ~80px to comfortably clear the header */
+  scroll-margin-top: 5rem;
 }
 
-@layer utilities {
-  .dark-copy-strong {
-    @apply text-gray-900 dark:text-gray-900;
-  }
+/* --------------------------
+   STEP 3: Mobile polish helpers
+   -------------------------- */
 
-  /* Optional utility if you want to add explicit offset on any element */
-  .scroll-mt-header {
-    scroll-margin-top: 5rem;
-  }
+/* Prevent wide children from breaking mobile layouts */
+.responsive-row {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.responsive-row > * {
+  /* allow horizontal scroll for very wide children instead of squishing */
+  min-width: min(100%, 48rem);
+}
+
+/* Make pre/code blocks scroll instead of stretching the page */
+pre, code, .prose pre {
+  overflow-x: auto;
+}
+
+/* Images/iframes never overflow the container */
+img, video, svg, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Consistent vertical rhythm for large sections */
+.section {
+  padding-top: clamp(1.25rem, 2vw + 0.5rem, 2.5rem);
+  padding-bottom: clamp(1.25rem, 2vw + 0.5rem, 2.5rem);
+}
+
+/* Card defaults used across the site */
+.card {
+  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
+  background: color-mix(in oklab, white 96%, transparent);
+}
+:root[class~="dark"] .card {
+  background: color-mix(in oklab, white 6%, transparent);
+}
+
+/* Tighten large headings on mobile */
+h1, .h1 { line-height: 1.1; }
+h2, .h2 { line-height: 1.15; }
+
+/* Optional utilities */
+@layer utilities {
+  .dark-copy-strong { @apply text-gray-900 dark:text-gray-900; }
+
+  /* Explicit anchor offset you can add to any element */
+  .scroll-mt-header { scroll-margin-top: 5rem; }
 }
