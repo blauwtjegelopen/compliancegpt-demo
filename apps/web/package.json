@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0",
-    "build": "next build",
+    "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "build": "pnpm prisma:generate && next build",
     "start": "next start -p 3000",
     "lint": "eslint ."
   },
@@ -15,17 +16,16 @@
     "prisma": "^6.16.3",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "recharts": "^2.12.7",
-    "zod": "^3.23.8"
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
     "@tsconfig/next": "^2.0.3",
     "@types/node": "^20.19.19",
     "@types/react": "^18.3.26",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^4.0.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.14",
     "typescript": "^5.9.2"
   }
 }
