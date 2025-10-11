@@ -18,6 +18,10 @@ yarn-error.log*
 .env.production.local
 *.env
 
+# TypeScript build info
+*.tsbuildinfo
+apps/web/tsconfig.tsbuildinfo
+
 # App-specific envs
 apps/web/.env.local
 apps/web/prisma/.env
