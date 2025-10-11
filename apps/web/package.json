@@ -15,16 +15,17 @@
     "prisma": "^6.16.3",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "zod": "^4.1.11"
+    "recharts": "^2.12.7",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
     "@tsconfig/next": "^2.0.3",
     "@types/node": "^20.19.19",
     "@types/react": "^18.3.26",
-    "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.14",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^4.0.0",
     "typescript": "^5.9.2"
   }
 }
