@@ -1,4 +1,3 @@
-cat > apps/web/tsconfig.json <<'JSON'
 {
   "extends": "@tsconfig/next/tsconfig.json",
   "compilerOptions": {
@@ -20,4 +19,3 @@ cat > apps/web/tsconfig.json <<'JSON'
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
-JSON
