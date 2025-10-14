@@ -1,3 +1,25 @@
+'use client';
+
+import Link from 'next/link';
+import {
+  ShieldCheck,
+  KeySquare,
+  EyeOff,
+  UserCheck,
+  FileSearch,
+  Gauge,
+  Globe2,
+  Workflow,
+  Lock,
+  Brain,
+  ClipboardCheck,
+  Server,
+  Boxes,
+  Activity,
+  History,
+  ArrowRight,
+  CheckCircle2,
+} from 'lucide-react';
 import BlackCTABanner from '@/components/BlackCTABanner';
 import ContactLargeFinal from '@/components/ContactLargeFinal';
 
@@ -69,6 +91,117 @@ export default function FeaturesPage() {
               </a>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Expanded marketing feature sections */}
+      <section className="max-w-6xl mx-auto px-6 pb-10">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          Deploy guardrails with confidence
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 max-w-3xl mb-6">
+          LayerZero adds the compliance layer your AI stack has been missing—helping you ship faster,
+          while staying audit-ready and compliant.
+        </p>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            {
+              icon: <ShieldCheck className="h-5 w-5" />,
+              title: 'Compliance Mapping',
+              desc: 'Map controls to SOC 2, ISO 27001, HIPAA, and PCI automatically.',
+            },
+            {
+              icon: <Brain className="h-5 w-5" />,
+              title: 'Rules AI Builder',
+              desc: 'Paste policy language and let AI propose structured regex rules you can review and deploy.',
+            },
+            {
+              icon: <Workflow className="h-5 w-5" />,
+              title: 'Approval Workflow',
+              desc: 'Route sensitive prompts to approvers, auto-redact, or block as needed.',
+            },
+            {
+              icon: <Globe2 className="h-5 w-5" />,
+              title: 'Region Routing',
+              desc: 'Pin requests to EU, US, or APAC regions for data residency compliance.',
+            },
+            {
+              icon: <FileSearch className="h-5 w-5" />,
+              title: 'Full Audit Logs',
+              desc: 'Every decision, redaction, and override is logged and exportable to SIEM or CSV.',
+            },
+            {
+              icon: <KeySquare className="h-5 w-5" />,
+              title: 'Source Code Guard',
+              desc: 'Catch keys, tokens, and repo secrets before they leak to vendors.',
+            },
+            {
+              icon: <Boxes className="h-5 w-5" />,
+              title: 'Multi-Model Support',
+              desc: 'Works seamlessly with OpenAI, Azure OpenAI, Anthropic, and others.',
+            },
+            {
+              icon: <Gauge className="h-5 w-5" />,
+              title: 'Performance Guardrails',
+              desc: 'Rate limits, payload caps, and retry logic to ensure stable experiences.',
+            },
+            {
+              icon: <Lock className="h-5 w-5" />,
+              title: 'Zero Retention Mode',
+              desc: 'Disable storage entirely for regulated workloads such as healthcare and finance.',
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-transparent p-5 hover:shadow-sm transition"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-blue-300">
+                  {f.icon}
+                </div>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{f.title}</div>
+              </div>
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="max-w-6xl mx-auto px-6 pb-14">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">How it works</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {[
+            {
+              icon: <Activity className="h-5 w-5" />,
+              title: 'Intercept',
+              desc: 'Your app points to the LayerZero proxy—no code changes required.',
+            },
+            {
+              icon: <ClipboardCheck className="h-5 w-5" />,
+              title: 'Evaluate',
+              desc: 'Redaction and policy evaluation happen inline, before the LLM sees data.',
+            },
+            {
+              icon: <History className="h-5 w-5" />,
+              title: 'Audit',
+              desc: 'Decisions, findings, and redactions are logged with full traceability.',
+            },
+          ].map((step) => (
+            <div
+              key={step.title}
+              className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-transparent p-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-blue-50 text-blue-600 dark:bg-white/10 dark:text-blue-300">
+                  {step.icon}
+                </div>
+                <div className="font-semibold text-gray-900 dark:text-gray-100">{step.title}</div>
+              </div>
+              <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">{step.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 

@@ -1,31 +1,41 @@
 // apps/web/app/api/integrations/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { IntegrationSchema, requireAdminToken } from "@/lib/integrations";
+import { Prisma } from "@prisma/client";
+
+// helper: map provider -> default display name
+function defaultNameFor(provider: string) {
+  const map: Record<string, string> = {
+    openai: "OpenAI (BYOK)",
+    "azure-openai": "Azure OpenAI (BYOK)",
+    anthropic: "Anthropic (BYOK)",
+  };
+  return map[provider] || `${provider} (BYOK)`;
+}
+
+// normalize empty strings to undefined so Prisma omits them
+const emptyToUndef = (v: unknown) =>
+  typeof v === "string" && v.trim() === "" ? undefined : (v as string | undefined);
 
 export async function GET() {
   try {
     const list = await prisma.integration.findMany({
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(list);
-  } catch (err: any) {
-    // Log to server console
-    console.error("[GET /api/integrations] error:", err);
-
-    // In dev, surface the message to help debug. In prod, keep it generic.
-    const body =
-      process.env.NODE_ENV === "production"
-        ? { error: "Failed to fetch integrations" }
-        : { error: "Failed to fetch integrations", detail: String(err?.message || err) };
-
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json(list, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    return NextResponse.json(
+      { error: "Failed to fetch integrations" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: Request) {
   try {
     requireAdminToken(req);
+
     const json = await req.json();
     const parsed = IntegrationSchema.safeParse(json);
     if (!parsed.success) {
@@ -34,15 +44,47 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const created = await prisma.integration.create({ data: parsed.data });
+
+    const { provider, name, apiKey, baseUrl, model, region, active } = parsed.data as {
+      provider?: string;
+      name?: string;
+      apiKey?: string | null;
+      baseUrl?: string | null;
+      model?: string | null;
+      region?: string | null;
+      active?: boolean;
+    };
+
+    if (!provider) {
+      return NextResponse.json(
+        { error: "provider is required" },
+        { status: 400 }
+      );
+    }
+
+    // Build a Prisma-safe create input (name must be present)
+    const data: Prisma.IntegrationCreateInput = {
+      name: name && name.trim().length ? name : defaultNameFor(provider),
+      provider,
+      // optional fields: omit if empty; pass undefined so Prisma doesn't set them to null unless you want null
+      apiKey: emptyToUndef(apiKey),
+      baseUrl: emptyToUndef(baseUrl),
+      model: emptyToUndef(model),
+      region: emptyToUndef(region),
+      // if your schema has 'active Boolean @default(false)'
+      ...(typeof active === "boolean" ? { active } : {}),
+    };
+
+    const created = await prisma.integration.create({ data });
     return NextResponse.json(created, { status: 201 });
   } catch (err: any) {
     console.error("[POST /api/integrations] error:", err);
-    const status = typeof err?.status === "number" ? err.status : 500;
-    const body =
-      process.env.NODE_ENV === "production"
-        ? { error: "Failed to create integration" }
-        : { error: "Failed to create integration", detail: String(err?.message || err) };
-    return NextResponse.json(body, { status });
+    // P2002 => unique constraint (e.g., provider already exists)
+    const status = err?.code === "P2002" ? 409 : 500;
+    const message =
+      err?.code === "P2002"
+        ? "An integration for this provider already exists"
+        : err?.message || "Failed to create integration";
+    return NextResponse.json({ error: message }, { status });
   }
 }

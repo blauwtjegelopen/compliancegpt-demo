@@ -60,24 +60,97 @@ img, video, svg, iframe {
   padding-bottom: clamp(1.25rem, 2vw + 0.5rem, 2.5rem);
 }
 
-/* Card defaults used across the site */
+/* Card defaults used across the site (now token-driven) */
 .card {
   border-radius: 0.75rem; /* rounded-xl */
-  border: 1px solid color-mix(in oklab, currentColor 12%, transparent);
-  background: color-mix(in oklab, white 96%, transparent);
-}
-:root[class~="dark"] .card {
-  background: color-mix(in oklab, white 6%, transparent);
+  border: 1px solid var(--border);
+  background: var(--card);
 }
 
 /* Tighten large headings on mobile */
 h1, .h1 { line-height: 1.1; }
 h2, .h2 { line-height: 1.15; }
 
-/* Optional utilities */
+/* Extra mobile-safe copy helpers */
 @layer utilities {
   .dark-copy-strong { @apply text-gray-900 dark:text-gray-900; }
 
   /* Explicit anchor offset you can add to any element */
   .scroll-mt-header { scroll-margin-top: 5rem; }
+
+  /* Cap readable line length & force safe wrapping for long tokens */
+  .content-measure { max-width: 68ch; }
+  .wrap-safe { overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
+
+  /* Modern text wrapping (ignored where unsupported) */
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+}
+
+/* -----------------------------------------------------------------------
+   DARK MODE FOUNDATIONS (Design tokens + base mappings)
+   ----------------------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;                       /* app background */
+  --fg: #0b0f19;                       /* primary text */
+  --muted: #4b5563;                    /* secondary text */
+  --card: #ffffff;                     /* card/surface background */
+  --elevated: #f8fafc;                 /* very light surface */
+  --border: rgba(2, 6, 23, 0.12);      /* subtle border */
+  --ring: rgba(59, 130, 246, 0.35);    /* blue-ish focus ring */
+  --link: #111827;                     /* link on light */
+  --link-muted: #374151;
+}
+
+:root.dark {
+  --bg: #0b0f19;                       /* near slate-950 */
+  --fg: #e5e7eb;                       /* gray-200 */
+  --muted: #9ca3af;                    /* gray-400 */
+  --card: #0f172a;                     /* slate-900 */
+  --elevated: #111827;                 /* gray-900 */
+  --border: rgba(255, 255, 255, 0.10); /* subtle white border */
+  --ring: rgba(125, 211, 252, 0.45);   /* cyan-300 ring */
+  --link: #f3f4f6;                     /* gray-100 */
+  --link-muted: #cbd5e1;               /* slate-300 */
+}
+
+/* Apply tokens globally (overrides earlier body color/bg) */
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* Token utilities */
+@layer utilities {
+  .bg-app { background: var(--bg); }
+  .bg-card { background: var(--card); }
+  .bg-elevated { background: var(--elevated); }
+  .text-fg { color: var(--fg); }
+  .text-muted { color: var(--muted); }
+  .border-subtle { border-color: var(--border); }
+  .ring-brand { box-shadow: 0 0 0 3px var(--ring); }
+  .link {
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .link-muted {
+    color: var(--link-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* Base elements inherit tokens */
+@layer base {
+  h1,h2,h3,h4,strong { color: var(--fg); }
+  p,li,small { color: var(--fg); }
+  a { color: var(--link); }
+  code, pre { background: color-mix(in oklab, var(--card) 96%, transparent); }
+  input, textarea, select {
+    background: var(--card);
+    color: var(--fg);
+    border-color: var(--border);
+  }
 }
