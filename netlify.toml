@@ -1,0 +1,11 @@
+[build]
+  command = "turbo run build --filter @apps/web"
+  publish = "apps/web/.next"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild" # good defaults for TS/JS
+
+# Next.js adapter (you already have the plugin)
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

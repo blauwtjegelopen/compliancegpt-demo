@@ -127,6 +127,25 @@ function toCustomRules(suggested: SuggestedRule[]): CustomRule[] {
   }));
 }
 
+/** Safely normalize upstream proxy responses (avoids TS errors on res.choices) */
+type ProxyResponse = { data?: any; findings?: unknown; error?: string; [k: string]: any };
+function extractTextFromProxy(res: ProxyResponse | null): string {
+  const anyRes = res as any;
+  const candidates = [
+    anyRes?.data?.content,
+    anyRes?.data?.choices?.[0]?.message?.content,
+    anyRes?.choices?.[0]?.message?.content,
+    anyRes?.data?.message?.content,
+    anyRes?.text,
+    anyRes?.echo?.messages?.[0]?.content,
+    typeof anyRes?.data === "string" ? anyRes?.data : null,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+  }
+  return "";
+}
+
 /* ---------------------------- Ruleset Panel UI ---------------------------- */
 function RulesetPanel({
   rules,
@@ -170,7 +189,7 @@ function RulesetPanel({
             placeholder="Rule name"
             className="md:col-span-2 rounded-md border border-gray-300 dark:border-white/10 bg-white dark:bg-transparent px-3 py-2 text-sm text-gray-900 dark:text-gray-200"
           />
-        <input
+          <input
             value={pattern}
             onChange={(e) => setPattern(e.target.value)}
             placeholder="Regex pattern (e.g., (?i)ssn\\b\\s*[:#-]?\\s*\\d{3}-\\d{2}-\\d{4})"
@@ -293,12 +312,8 @@ Guidance:
 
         const res = await route({ messages });
 
-        const raw =
-          (res?.data && (res.data.content || res.data)) ||
-          res?.choices?.[0]?.message?.content ||
-          res?.data?.choices?.[0]?.message?.content ||
-          res?.text ||
-          "";
+        // ✅ TS-safe normalization (no direct res.choices access)
+        const raw = extractTextFromProxy(res);
 
         let parsed: any = null;
         try {
@@ -619,107 +634,107 @@ Also don't leak sk-1234567890abcdefghijklmnop. Thanks!`
         onAddMany={(newRules) => setCustomRules((rs) => [...rs, ...newRules])}
       />
 
-    {/* Approval Workflow Queue */}
-<section className="max-w-6xl mx-auto px-4 sm:px-6 pb-14">
-  <div className="flex items-baseline justify-between mb-4">
-    <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">Approval workflow</h2>
-    <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-      <Badge tone="review">Pending: {pendingCount}</Badge>
-      <Badge tone="approved">Approved: {approvedCount}</Badge>
-      <Badge tone="redacted">Redacted: {redactedCount}</Badge>
-    </div>
-  </div>
+      {/* Approval Workflow Queue */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-14">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-200">Approval workflow</h2>
+          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+            <Badge tone="review">Pending: {pendingCount}</Badge>
+            <Badge tone="approved">Approved: {approvedCount}</Badge>
+            <Badge tone="redacted">Redacted: {redactedCount}</Badge>
+          </div>
+        </div>
 
-  {/* ✅ dark:bg for table wrapper & table */}
-  <div className="rounded-2xl border border-gray-200 bg-white dark:bg-zinc-900 shadow-sm dark:border-white/10 overflow-hidden">
-    <table className="w-full text-sm bg-white dark:bg-zinc-900">
-      <thead className="bg-gray-50 dark:bg-white/10">
-        <tr className="text-left text-gray-700 dark:text-gray-300">
-          <th className="py-3 px-4">Time</th>
-          <th className="py-3 px-4">User</th>
-          <th className="py-3 px-4">Prompt</th>
-          <th className="py-3 px-4">Status</th>
-          <th className="py-3 px-4">Actions</th>
-        </tr>
-      </thead>
+        {/* ✅ dark:bg for table wrapper & table */}
+        <div className="rounded-2xl border border-gray-200 bg-white dark:bg-zinc-900 shadow-sm dark:border-white/10 overflow-hidden">
+          <table className="w-full text-sm bg-white dark:bg-zinc-900">
+            <thead className="bg-gray-50 dark:bg-white/10">
+              <tr className="text-left text-gray-700 dark:text-gray-300">
+                <th className="py-3 px-4">Time</th>
+                <th className="py-3 px-4">User</th>
+                <th className="py-3 px-4">Prompt</th>
+                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4">Actions</th>
+              </tr>
+            </thead>
 
-      <tbody className="divide-y divide-gray-200 dark:divide-white/10">
-        {queue.map((item) => (
-          <tr key={item.id} className="text-gray-800 dark:text-gray-200 align-top">
-            <td className="py-3 px-4 whitespace-nowrap">{item.createdAt}</td>
-            <td className="py-3 px-4 whitespace-nowrap">{item.user}</td>
+            <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+              {queue.map((item) => (
+                <tr key={item.id} className="text-gray-800 dark:text-gray-200 align-top">
+                  <td className="py-3 px-4 whitespace-nowrap">{item.createdAt}</td>
+                  <td className="py-3 px-4 whitespace-nowrap">{item.user}</td>
 
-            <td className="py-3 px-4">
-              <div className="space-y-2">
-                {/* ✅ Soft background for prompt in both themes */}
-                <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug rounded-md p-2 bg-white/60 dark:bg-white/5">
-                  {item.text}
-                </pre>
+                  <td className="py-3 px-4">
+                    <div className="space-y-2">
+                      {/* ✅ Soft background for prompt in both themes */}
+                      <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug rounded-md p-2 bg-white/60 dark:bg-white/5">
+                        {item.text}
+                      </pre>
 
-                {item.redacted && (
-                  <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-2">
-                    <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-1">
-                      <EyeOff className="h-3.5 w-3.5" />
-                      <span>Redacted</span>
+                      {item.redacted && (
+                        <div className="rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 p-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                            <EyeOff className="h-3.5 w-3.5" />
+                            <span>Redacted</span>
+                          </div>
+                          <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">
+                            {item.redacted}
+                          </pre>
+                        </div>
+                      )}
                     </div>
-                    <pre className="whitespace-pre-wrap break-words text-[13px] leading-snug">
-                      {item.redacted}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </td>
+                  </td>
 
-            <td className="py-3 px-4 whitespace-nowrap">
-              {item.status === "Pending" && <Badge tone={item.needsReview ? "review" : "ok"}>Pending</Badge>}
-              {item.status === "Approved" && <Badge tone="approved">Approved</Badge>}
-              {item.status === "Redacted" && <Badge tone="redacted">Redacted</Badge>}
-            </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    {item.status === "Pending" && <Badge tone={item.needsReview ? "review" : "ok"}>Pending</Badge>}
+                    {item.status === "Approved" && <Badge tone="approved">Approved</Badge>}
+                    {item.status === "Redacted" && <Badge tone="redacted">Redacted</Badge>}
+                  </td>
 
-            <td className="py-3 px-4">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleApprove(item.id)}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
-                  disabled={item.status !== "Pending"}
-                  title="Approve without changes"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Approve
-                </button>
-                <button
-                  onClick={() => handleRedact(item.id)}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
-                  disabled={item.status !== "Pending"}
-                  title="Apply redaction and approve"
-                >
-                  <Scissors className="h-3.5 w-3.5" />
-                  Redact
-                </button>
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs"
-                  title="Remove from queue"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-        ))}
+                  <td className="py-3 px-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleApprove(item.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+                        disabled={item.status !== "Pending"}
+                        title="Approve without changes"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRedact(item.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 text-xs"
+                        disabled={item.status !== "Pending"}
+                        title="Apply redaction and approve"
+                      >
+                        <Scissors className="h-3.5 w-3.5" />
+                        Redact
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-gray-300 dark:border-white/10 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-xs"
+                        title="Remove from queue"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
 
-        {queue.length === 0 && (
-          <tr>
-            <td colSpan={5} className="py-8 px-4 text-center text-gray-600 dark:text-gray-400">
-              No items in the approval queue.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-</section>
+              {queue.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-8 px-4 text-center text-gray-600 dark:text-gray-400">
+                    No items in the approval queue.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Controls overview */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-10">

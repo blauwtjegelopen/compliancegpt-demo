@@ -14,7 +14,6 @@ export const metadata: Metadata = {
   icons: { icon: "/logo-dark@3x.png" },
 };
 
-// Real mobile viewport and theme color in the right place
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -28,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <body
         className={[
           inter.className,
@@ -53,9 +52,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <PageShell>
           <Navbar />
-          {/* Do NOT constrain width globally. Let each page/section decide:
-              - full-bleed backgrounds at section level
-              - inner content capped with max-w-6xl mx-auto px-4 sm:px-6 */}
           <main id="content">{children}</main>
           <Footer />
         </PageShell>

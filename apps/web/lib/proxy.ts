@@ -1,34 +1,37 @@
 // apps/web/lib/proxy.ts
-export async function routeViaProxy(payload: unknown): Promise<{ data: any; findings: unknown; error?: string }> {
+export async function routeViaProxy(payload: any) {
+  const isBrowser = typeof window !== "undefined";
+  const base =
+    // Allow override
+    process.env.NEXT_PUBLIC_PROXY_URL ||
+    // On Netlify, use the function route
+    "/.netlify/functions/layerzero-proxy";
+
+  const devBase =
+    process.env.NEXT_PUBLIC_DEV_PROXY ||
+    "http://127.0.0.1:4000/v1/chat/completions"; // your local proxy if running
+
+  const endpoint =
+    process.env.NODE_ENV === "development" ? devBase : base;
+
   try {
-    const res = await fetch("/api/proxy", {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
-      cache: "no-store",
     });
-
-    const text = await res.text().catch(() => "");
-    // Try to parse JSON either way
-    let data: any = {};
-    try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-
-    // Audit header (optional)
-    const audit = res.headers.get("x-layerzero-findings");
-    let findings: unknown = [];
-    try {
-      findings = audit ? JSON.parse(typeof atob !== "undefined" ? atob(audit) : Buffer.from(audit, "base64").toString("utf8")) : [];
-    } catch {
-      findings = [];
-    }
-
-    if (!res.ok) {
-      // Return an error string instead of throwing, so the page can render it
-      return { data, findings, error: `(${res.status} ${res.statusText}) ${text?.slice(0, 300)}` };
-    }
-
-    return { data, findings };
-  } catch (err: any) {
-    return { data: {}, findings: [], error: String(err?.message || err) };
+    const data = await res.json().catch(() => ({}));
+    // Normalize a bit so your UI can read consistently
+    return {
+      ok: res.ok,
+      data: data?.data ?? data,
+      findings: data?.findings, // if your proxy adds it
+      error: !res.ok ? (data?.error || `HTTP ${res.status}`) : undefined,
+    };
+  } catch (e: any) {
+    return {
+      ok: false,
+      error: e?.message || "fetch failed",
+    };
   }
 }
