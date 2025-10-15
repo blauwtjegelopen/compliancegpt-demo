@@ -1,4 +1,3 @@
-// apps/web/components/PageShell.tsx
 'use client';
 
 type Props = { children: React.ReactNode };
