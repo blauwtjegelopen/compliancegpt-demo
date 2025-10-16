@@ -1,141 +1,203 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { Menu, X } from 'lucide-react';
+
+type NavItem = { label: string; href: string; authOnly?: boolean };
+
+const PUBLIC_NAV: NavItem[] = [
+  { label: 'Features', href: '/features' },
+  { label: 'Compare', href: '/compare' },
+  { label: 'Pricing', href: '/pricing' },
+  { label: 'Integrations', href: '/integrations' },
+  { label: 'About', href: '/about' },
+  { label: 'Contact', href: '/#contact' },
+  { label: 'Try Demo', href: '/admin/demo' },
+];
+
+const AUTH_NAV: NavItem[] = [{ label: 'Admin', href: '/admin', authOnly: true }];
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(' ');
+}
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const navItems = [
-    { href: '/features', label: 'Features' },
-    { href: '/integrations', label: 'Integrations' },
-    { href: '/pricing', label: 'Pricing' },
-    { href: '/trust', label: 'Security & Trust' },
-    { href: '/compare', label: 'Compare' },
-    { href: '/about', label: 'About Us' },
-    // ❌ Removed Admin Demo here
-  ];
+  // logo load states for nice fade-in (prevents pop)
+  const [logoLoaded, setLogoLoaded] = useState({ light: false, dark: false });
 
-  const goToContact = () => {
-    const el = typeof document !== 'undefined' ? document.getElementById('contact') : null;
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      window.location.href = '/#contact';
-    }
-  };
+  // close mobile tray on route change
+  useEffect(() => setOpen(false), [pathname]);
+
+  // tiny fade on scroll: solidify header & add subtle shadow
+  const raf = useRef<number | null>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      if (raf.current) cancelAnimationFrame(raf.current);
+      raf.current = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 12);
+      });
+    };
+    onScroll(); // initialize on mount
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (raf.current) cancelAnimationFrame(raf.current);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
+  const isActive = (href: string) =>
+    pathname === href || (href !== '/' && pathname?.startsWith(href));
+
+  const items = session?.user ? [...PUBLIC_NAV, ...AUTH_NAV] : PUBLIC_NAV;
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur dark:bg-gray-900/80">
-      <nav className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" aria-label="LayerZero Home" className="flex items-center h-full">
-          <Image
-            alt="LayerZero Logo (white)"
-            src="/logo-wordmark-light@3x_New.png"
-            className="hidden dark:block h-auto w-[180px] sm:w-[200px] md:w-[220px] lg:w-[240px]"
-            width={240}
-            height={52}
-            priority
-          />
-          <Image
-            alt="LayerZero Logo (black)"
-            src="/logo-wordmark-dark@3x_New.png"
-            className="block dark:hidden h-auto w-[180px] sm:w-[200px] md:w-[220px] lg:w-[240px]"
-            width={240}
-            height={52}
-            priority
-          />
-        </Link>
-
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-5 text-[0.875rem] font-medium">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="relative text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white
-                         after:absolute after:left-0 after:-bottom-1 after:w-0 after:h-[2px]
-                         after:bg-black dark:after:bg-white after:transition-all hover:after:w-full"
-            >
-              {item.label}
-            </Link>
-          ))}
-
-          {/* ✅ Single Contact Us */}
-          <button
-            type="button"
-            onClick={goToContact}
-            className="relative text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white
-                       after:absolute after:left-0 after:-bottom-1 after:w-0 after:h-[2px]
-                       after:bg-black dark:after:bg-white after:transition-all hover:after:w-full"
-          >
-            Contact Us
-          </button>
-
-          {/* ✅ Only Launch Demo stays */}
-          <Link
-            href="/admin"
-            className="px-3 py-1.5 rounded-xl bg-black text-white dark:bg-white dark:text-black
-                       transition-shadow hover:shadow-lg hover:ring-1 hover:ring-black/10 dark:hover:ring-white/20"
-          >
-            Launch Demo
+    <header
+      className={cx(
+        'sticky top-0 z-50 transition-colors',
+        // base/backdrop
+        'backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-black/30',
+        // soft border at top
+        'border-b border-transparent',
+        // animated states
+        scrolled
+          ? 'bg-white/95 dark:bg-gray-950/80 border-gray-200/70 dark:border-white/10 shadow-sm'
+          : 'bg-white/85 dark:bg-gray-950/60 border-gray-200/40 dark:border-white/5'
+      )}
+    >
+      <nav className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="flex items-center justify-between gap-4 py-3">
+          {/* Logo (routes to home) */}
+          <Link href="/" className="inline-flex items-center gap-3 h-11" aria-label="LayerZero – Home">
+            <span className="relative w-[160px] h-[28px] block">
+              {/* Light theme (dark wordmark) */}
+              <Image
+                src="/logo-wordmark-dark@3x_New.png"
+                alt="LayerZero"
+                fill
+                sizes="160px"
+                priority
+                className={cx(
+                  'absolute inset-0 object-contain transition-opacity duration-300',
+                  'opacity-100 dark:opacity-0',
+                  logoLoaded.light ? '' : 'opacity-0'
+                )}
+                onLoadingComplete={() => setLogoLoaded((s) => ({ ...s, light: true }))}
+              />
+              {/* Dark theme (light wordmark) */}
+              <Image
+                src="/logo-wordmark-light@3x_New.png"
+                alt="LayerZero"
+                fill
+                sizes="160px"
+                priority
+                className={cx(
+                  'absolute inset-0 object-contain transition-opacity duration-300',
+                  'opacity-0 dark:opacity-100',
+                  logoLoaded.dark ? '' : 'opacity-0'
+                )}
+                onLoadingComplete={() => setLogoLoaded((s) => ({ ...s, dark: true }))}
+              />
+            </span>
           </Link>
-        </div>
 
-        {/* Mobile menu button */}
-        <button
-          className="md:hidden text-gray-700 dark:text-gray-200"
-          aria-label="Toggle Menu"
-          onClick={() => setOpen((v) => !v)}
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            {open ? (
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            ) : (
-              <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            )}
-          </svg>
-        </button>
-      </nav>
-
-      {/* Mobile drawer */}
-      {open && (
-        <div className="md:hidden border-t bg-white/90 dark:bg-gray-900/90 backdrop-blur">
-          <div className="max-w-6xl mx-auto px-6 py-4 grid gap-2">
-            {navItems.map((item) => (
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-1">
+            {items.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="block px-2 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100/70 dark:hover:bg-white/5"
-                onClick={() => setOpen(false)}
+                className={cx(
+                  'inline-flex items-center rounded-lg px-3 h-11 text-sm transition',
+                  'hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white',
+                  isActive(item.href)
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-700 dark:text-gray-300'
+                )}
               >
                 {item.label}
               </Link>
             ))}
 
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                setTimeout(goToContact, 0);
-              }}
-              className="block text-left px-2 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100/70 dark:hover:bg-white/5"
-            >
-              Contact Us
-            </button>
-
-            {/* ✅ Only Launch Demo stays */}
-            <Link
-              href="/admin"
-              className="block text-center mt-2 px-3 py-2 rounded-xl bg-black text-white dark:bg-white dark:text-black"
-              onClick={() => setOpen(false)}
-            >
-              Launch Demo
-            </Link>
+            {/* Auth area */}
+            {session?.user ? (
+              <div className="ml-2 flex items-center gap-2">
+                <span className="hidden lg:inline text-sm text-gray-600 dark:text-gray-400">
+                  {session.user.email}
+                </span>
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="inline-flex items-center rounded-2xl h-11 px-4 text-sm font-medium border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => signIn(undefined, { callbackUrl: '/admin' })}
+                className="ml-2 inline-flex items-center rounded-2xl h-11 px-4 text-sm font-semibold bg-black text-white dark:bg-white dark:text-black hover:opacity-90"
+              >
+                Sign In
+              </button>
+            )}
           </div>
+
+          {/* Mobile toggler */}
+          <button
+            aria-label="Toggle menu"
+            onClick={() => setOpen((v) => !v)}
+            className="md:hidden inline-flex items-center justify-center rounded-xl h-11 w-11 border border-gray-300 dark:border-white/10"
+          >
+            {open ? <Menu className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-      )}
+
+        {/* Mobile tray */}
+        {open && (
+          <div className="md:hidden pb-3">
+            <div className="grid gap-1">
+              {items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cx(
+                    'rounded-lg px-3 h-11 inline-flex items-center',
+                    isActive(item.href)
+                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300'
+                      : 'text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10'
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              {session?.user ? (
+                <button
+                  onClick={() => signOut({ callbackUrl: '/' })}
+                  className="mt-1 rounded-xl h-11 px-3 text-left inline-flex items-center border border-gray-300 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/10"
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <button
+                  onClick={() => signIn(undefined, { callbackUrl: '/admin' })}
+                  className="mt-1 rounded-xl h-11 px-3 inline-flex items-center bg-black text-white dark:bg-white dark:text-black font-medium"
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </nav>
     </header>
   );
 }

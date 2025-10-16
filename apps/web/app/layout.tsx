@@ -5,6 +5,7 @@ import { Inter } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageShell from "@/components/PageShell";
+import SessionProvider from "@/components/SessionProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,15 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className={[
           inter.className,
           "min-h-screen antialiased",
-          // sane defaults for both themes
           "bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100",
-          // avoid sideways scroll on small screens
           "overflow-x-hidden",
-          // nice selection
           "selection:bg-cyan-500/20 selection:text-cyan-900",
         ].join(" ")}
       >
-        {/* Skip link for keyboard users */}
+        {/* Accessibility skip link */}
         <a
           href="#content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50
@@ -51,9 +49,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </a>
 
         <PageShell>
-          <Navbar />
-          <main id="content">{children}</main>
-          <Footer />
+          <SessionProvider>
+            <Navbar />
+            <main id="content">{children}</main>
+            <Footer />
+          </SessionProvider>
         </PageShell>
       </body>
     </html>

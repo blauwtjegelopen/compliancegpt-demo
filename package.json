@@ -7,7 +7,10 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "format": "prettier -w ."
+    "format": "prettier -w .",
+    "prisma:generate": "pnpm --filter @apps/web prisma:generate",
+    "prisma:push": "pnpm --filter @apps/web prisma:push",
+    "prisma:migrate": "pnpm --filter @apps/web prisma:migrate"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
@@ -27,6 +30,10 @@
     "packages/*"
   ],
   "dependencies": {
-    "@netlify/functions": "^5.0.0"
+    "@netlify/functions": "^5.0.0",
+    "@auth/core": "^0.27.0",
+    "next-auth": "^4.24.7",
+    "@prisma/client": "^6.16.3",
+    "prisma": "^6.16.3"
   }
 }
