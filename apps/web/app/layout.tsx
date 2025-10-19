@@ -6,6 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageShell from "@/components/PageShell";
 import SessionProvider from "@/components/SessionProvider";
+import { ToastProvider } from "@/components/ToastProvider"; // ⬅️ added
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -48,13 +49,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
 
-        <PageShell>
-          <SessionProvider>
-            <Navbar />
-            <main id="content">{children}</main>
-            <Footer />
-          </SessionProvider>
-        </PageShell>
+        {/* ⬇️ Toast provider wraps the app so notifications show globally */}
+        <ToastProvider>
+          <PageShell>
+            <SessionProvider>
+              <Navbar />
+              <main id="content">{children}</main>
+              <Footer />
+            </SessionProvider>
+          </PageShell>
+        </ToastProvider>
       </body>
     </html>
   );

@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "prisma db push --schema=./prisma/schema.prisma",
-    "prisma:migrate": "prisma migrate deploy --schema=./prisma/schema.prisma"
+    "prisma:migrate": "prisma migrate deploy --schema=./prisma/schema.prisma",
+    "prisma:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.2",
@@ -32,6 +33,7 @@
     "postcss": "^8.5.6",
     "prisma": "^6.16.3",
     "tailwindcss": "^4.1.14",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.2"
   }
 }
