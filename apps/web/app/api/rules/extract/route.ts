@@ -118,7 +118,6 @@ Create rules that prevent disallowed disclosure/sharing based on this policy.
       action: r.action,
       replacement: r.replacement ?? null,
     })),
-    skipDuplicates: true,
   });
 
   return NextResponse.json({ added: created.count, preview: clean.slice(0, 5) });
